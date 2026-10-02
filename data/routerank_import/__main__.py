@@ -2,11 +2,13 @@
 
   python -m routerank_import filter IN.osm.pbf OUT.osm.pbf
   python -m routerank_import load FILTERED.osm.pbf --source-url URL [--extract-date ISO] [--provinces 9]
+  python -m routerank_import provinces FILTERED.osm.pbf OUT.json
 
 The database comes from DATABASE_URL (libpq form, e.g. postgresql://user:pass@host/db).
 """
 
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -59,6 +61,17 @@ def load(path: str, source_url: str, extract_date: datetime | None, expected_pro
     return run_id
 
 
+def write_provinces(path: str, out: str) -> None:
+    """Province list for the map's picker: name, URL slug, ISO code and bounding box."""
+    shapes = sorted(provinces(path), key=lambda p: p.name)
+    rows = [{"name": p.name, "slug": p.name.lower().replace(" ", "-"), "iso": p.iso_code,
+             "bbox": [round(v, 4) for v in p.bbox]} for p in shapes]
+    with open(out, "w", encoding="utf-8") as f:
+        json.dump(rows, f, indent=2)
+        f.write("\n")
+    print(f"{len(rows)} provinces written to {out}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="routerank_import")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -70,10 +83,15 @@ def main() -> None:
     ld.add_argument("--source-url", required=True)
     ld.add_argument("--extract-date", type=datetime.fromisoformat)
     ld.add_argument("--provinces", type=int, help="expected number of provinces (9 for Sri Lanka)")
+    pr = sub.add_parser("provinces", help="write province names, slugs and bounding boxes as JSON")
+    pr.add_argument("pbf")
+    pr.add_argument("out")
     args = parser.parse_args()
 
     if args.command == "filter":
         filter_extract(args.src, args.dst)
+    elif args.command == "provinces":
+        write_provinces(args.pbf, args.out)
     else:
         date = args.extract_date.replace(tzinfo=args.extract_date.tzinfo or timezone.utc) if args.extract_date else None
         load(args.pbf, args.source_url, date, args.provinces)
