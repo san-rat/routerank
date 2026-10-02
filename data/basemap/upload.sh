@@ -12,8 +12,8 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 FILE="$DIR/../downloads/$NAME"
 [ -f "$FILE" ] || { echo "Not found: $FILE (run build.sh first)"; exit 1; }
 
-npx wrangler@4 r2 bucket cors set "$BUCKET" --file "$DIR/cors.json"
-npx wrangler@4 r2 object put "$BUCKET/$NAME" --file "$FILE" --remote \
+npx --prefer-offline -y wrangler@4 r2 bucket cors set "$BUCKET" --file "$DIR/cors.json"
+npx --prefer-offline -y wrangler@4 r2 object put "$BUCKET/$NAME" --file "$FILE" --remote \
   --content-type application/octet-stream \
   --cache-control "public, max-age=31536000, immutable"
 
