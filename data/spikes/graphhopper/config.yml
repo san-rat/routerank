@@ -1,0 +1,20 @@
+# GraphHopper 11.1 config for the Phase 1 matching spike (Colombo fixture).
+graphhopper:
+  datareader.file: ../../fixtures/colombo.osm.pbf
+  graph.location: ../../downloads/gh-colombo
+  custom_models.directory: .
+  profiles:
+    - name: main_roads
+      custom_model_files: [car.json, main_roads.json]
+  graph.encoded_values: car_access, car_average_speed, road_access, road_class, road_class_link, osm_way_id
+  import.osm.ignored_highways: footway,construction,cycleway,path,steps
+
+server:
+  application_connectors:
+    - type: http
+      port: 8989
+      bind_host: localhost
+  admin_connectors:
+    - type: http
+      port: 8990
+      bind_host: localhost
