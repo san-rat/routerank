@@ -32,6 +32,7 @@ class Province:
     name: str
     iso_code: str
     wkb_hex: str
+    bbox: tuple[float, float, float, float]  # min lon, min lat, max lon, max lat
 
 
 def road_class_of(highway: str | None) -> tuple[str, bool] | None:
@@ -120,5 +121,8 @@ def provinces(path: str) -> list[Province]:
         iso = tags.get("ISO3166-2", "")
         if tags.get("boundary") == "administrative" and tags.get("admin_level") == "4" and iso.startswith("LK-"):
             name = (tags.get("name:en") or tags.get("name")).removesuffix(" Province")
-            found.append(Province(name, iso, wkb.create_multipolygon(area)))
+            points = [(n.lon, n.lat) for ring in area.outer_rings() for n in ring]
+            bbox = (min(p[0] for p in points), min(p[1] for p in points),
+                    max(p[0] for p in points), max(p[1] for p in points))
+            found.append(Province(name, iso, wkb.create_multipolygon(area), bbox))
     return found

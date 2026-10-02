@@ -40,6 +40,8 @@ services:
       - api
     ports:
       - "8081:80"
+    volumes:
+      - ../data/downloads:/tiles:ro # base map from data/basemap/build.sh
 
   # Applies the backend's Flyway migrations without starting the API
   migrate:

@@ -23,5 +23,8 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+        env:
+          # Build check only; the deploy workflow uses the real R2 URL
+          VITE_TILES_URL: https://tiles.example.invalid/sri-lanka.pmtiles
       - name: Docker image builds
         run: docker build -t routerank-web:ci .
