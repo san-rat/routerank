@@ -1,14 +1,17 @@
 # Local development stack: `docker compose up --build` from this folder.
 # Web: http://localhost:8081  ·  API: http://localhost:8080/actuator/health  ·  DB: localhost:5432
+# Road import (see data/README.md): `docker compose --profile tools run --rm import ...`
 name: routerank
+
+x-db-env: &db-env
+  POSTGRES_DB: routerank
+  POSTGRES_USER: routerank
+  POSTGRES_PASSWORD: routerank # local development only
 
 services:
   db:
     image: postgis/postgis:16-3.5
-    environment:
-      POSTGRES_DB: routerank
-      POSTGRES_USER: routerank
-      POSTGRES_PASSWORD: routerank # local development only
+    environment: *db-env
     ports:
       - "5432:5432"
     volumes:
@@ -24,6 +27,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/routerank
+      SPRING_DATASOURCE_USERNAME: routerank
+      SPRING_DATASOURCE_PASSWORD: routerank
     ports:
       - "8080:8080"
 
@@ -33,6 +40,28 @@ services:
       - api
     ports:
       - "8081:80"
+
+  # Applies the backend's Flyway migrations without starting the API
+  migrate:
+    profiles: [tools]
+    image: flyway/flyway:12.4.0
+    depends_on:
+      db:
+        condition: service_healthy
+    command: -url=jdbc:postgresql://db:5432/routerank -user=routerank -password=routerank -locations=filesystem:/migrations migrate
+    volumes:
+      - ../backend/src/main/resources/db/migration:/migrations:ro
+
+  import:
+    profiles: [tools]
+    build: ../data
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql://routerank:routerank@db:5432/routerank
+    volumes:
+      - ../data/downloads:/work
 
 volumes:
   db-data:
