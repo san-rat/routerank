@@ -1,0 +1,38 @@
+# Local development stack: `docker compose up --build` from this folder.
+# Web: http://localhost:8081  ·  API: http://localhost:8080/actuator/health  ·  DB: localhost:5432
+name: routerank
+
+services:
+  db:
+    image: postgis/postgis:16-3.5
+    environment:
+      POSTGRES_DB: routerank
+      POSTGRES_USER: routerank
+      POSTGRES_PASSWORD: routerank # local development only
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U routerank -d routerank"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ../backend
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  web:
+    build: ../frontend
+    depends_on:
+      - api
+    ports:
+      - "8081:80"
+
+volumes:
+  db-data:
