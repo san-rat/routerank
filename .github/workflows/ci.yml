@@ -21,6 +21,7 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      data: ${{ steps.filter.outputs.data }}
     steps:
       - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
@@ -35,6 +36,11 @@ jobs:
               - 'frontend/**'
               - '.github/workflows/ci.yml'
               - '.github/workflows/frontend.yml'
+            data:
+              - 'data/**'
+              - 'backend/src/main/resources/db/migration/**'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/data.yml'
 
   backend:
     needs: changes
@@ -46,9 +52,14 @@ jobs:
     if: needs.changes.outputs.frontend == 'true'
     uses: ./.github/workflows/frontend.yml
 
+  data:
+    needs: changes
+    if: needs.changes.outputs.data == 'true'
+    uses: ./.github/workflows/data.yml
+
   all-green:
     if: always()
-    needs: [changes, backend, frontend]
+    needs: [changes, backend, frontend, data]
     runs-on: ubuntu-latest
     steps:
       - name: Fail if any job failed or was cancelled

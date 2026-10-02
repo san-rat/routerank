@@ -12,4 +12,10 @@ Thumbs.db
 # Data downloads (OSM extracts, tiles)
 data/downloads/
 *.osm.pbf
+!data/fixtures/*.osm.pbf
 *.pmtiles
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
