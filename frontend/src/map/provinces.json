@@ -1,0 +1,101 @@
+[
+  {
+    "name": "Central",
+    "slug": "central",
+    "iso": "LK-2",
+    "bbox": [
+      80.4219,
+      6.7512,
+      81.0165,
+      8.0123
+    ]
+  },
+  {
+    "name": "Eastern",
+    "slug": "eastern",
+    "iso": "LK-5",
+    "bbox": [
+      80.7536,
+      6.4079,
+      82.081,
+      9.1103
+    ]
+  },
+  {
+    "name": "North Central",
+    "slug": "north-central",
+    "iso": "LK-7",
+    "bbox": [
+      79.9523,
+      7.6512,
+      81.3433,
+      8.9202
+    ]
+  },
+  {
+    "name": "North Western",
+    "slug": "north-western",
+    "iso": "LK-6",
+    "bbox": [
+      79.4907,
+      7.2579,
+      80.5779,
+      8.6887
+    ]
+  },
+  {
+    "name": "Northern",
+    "slug": "northern",
+    "iso": "LK-4",
+    "bbox": [
+      79.422,
+      8.5244,
+      81.1271,
+      10.035
+    ]
+  },
+  {
+    "name": "Sabaragamuwa",
+    "slug": "sabaragamuwa",
+    "iso": "LK-9",
+    "bbox": [
+      80.1454,
+      6.2279,
+      80.9532,
+      7.3966
+    ]
+  },
+  {
+    "name": "Southern",
+    "slug": "southern",
+    "iso": "LK-3",
+    "bbox": [
+      79.7931,
+      5.719,
+      81.8825,
+      6.578
+    ]
+  },
+  {
+    "name": "Uva",
+    "slug": "uva",
+    "iso": "LK-8",
+    "bbox": [
+      80.7759,
+      6.2965,
+      81.6372,
+      7.625
+    ]
+  },
+  {
+    "name": "Western",
+    "slug": "western",
+    "iso": "LK-1",
+    "bbox": [
+      79.6162,
+      6.3249,
+      80.3813,
+      7.3305
+    ]
+  }
+]
