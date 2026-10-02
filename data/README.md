@@ -55,6 +55,21 @@ python -m venv .venv
 
 On macOS or Linux, use `.venv/bin/python` instead.
 
+## Base map (Phase 2)
+
+The map the website draws is one PMTiles file cut from Protomaps' daily build of OpenStreetMap, named by its build date and never overwritten (it is cached as immutable).
+
+```bash
+data/basemap/build.sh 20261002
+```
+```bash
+data/basemap/upload.sh sri-lanka-2026-10-02.pmtiles routerank-tiles
+```
+
+`build.sh` runs `pmtiles extract` (Docker, `protomaps/go-pmtiles`) with a Sri Lanka bounding box and writes `downloads/sri-lanka-YYYY-MM-DD.pmtiles` (about 175 MB, zoom 0–15). `upload.sh` needs Wrangler logged in to Cloudflare; it sets the bucket's CORS rules from `basemap/cors.json` and uploads the file with a one-year immutable cache header. Then point `VITE_TILES_URL` at the new file.
+
+`python -m routerank_import provinces downloads/main-roads.osm.pbf ../frontend/src/map/provinces.json` refreshes the province list and bounding boxes the map's picker uses.
+
 ## Matching spike
 
 `spikes/graphhopper/` shows how a GraphHopper path maps to segment IDs. Result: [docs/adr/0001-route-to-segment-matching.md](../docs/adr/0001-route-to-segment-matching.md).
