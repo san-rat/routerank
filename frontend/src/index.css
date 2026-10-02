@@ -1,0 +1,27 @@
+:root {
+  --brand: #0f766e;
+  --text: #1f2937;
+  --bg: #fff;
+
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  padding: 16px;
+}
+
+h1 {
+  color: var(--brand);
+  margin: 0 0 8px;
+}
