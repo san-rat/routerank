@@ -1,27 +1,342 @@
+/* Tokens from the Figma file (Personal Works Prototype) */
 :root {
-  --brand: #0f766e;
-  --text: #1f2937;
-  --bg: #fff;
+  --brand-primary: #0f766e;
+  --brand-primary-soft: #e2f3ef;
+  --brand-accent: #2f7fc4;
+  --bus-red: #e5352b;
+  --text-primary: #15191c;
+  --text-secondary: #5a6466;
+  --text-tertiary: #929a9c;
+  --text-inverse: #ffffff;
+  --surface-card: #ffffff;
+  --surface-bg: #f5f7f7;
+  --surface-border: #e3e8e8;
+  --shadow-float: 0 6px 10px rgba(15, 26, 26, 0.14);
+  --shadow-soft: 0 4px 18px rgba(15, 26, 26, 0.07);
+  --shadow-sheet: 0 4px 18px rgba(15, 26, 26, 0.16);
+  --panel-width: 420px;
 
-  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
-  color: var(--text);
-  background: var(--bg);
+  font-family: 'Plus Jakarta Sans Variable', system-ui, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text-primary);
+  background: var(--surface-bg);
   color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 
-body {
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
   margin: 0;
+  height: 100%;
 }
 
-main {
-  min-height: 100vh;
+button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ---------- App frame ---------- */
+
+.app {
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.map-area,
+.map-area > .map {
+  position: absolute;
+  inset: 0;
+}
+
+.map-loading {
+  position: absolute;
+  inset: 0;
+  background: #efeeea;
+}
+
+/* ---------- Mobile: floating nav (Figma "Web nav") ---------- */
+
+.web-nav {
+  position: absolute;
+  left: 50%;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: 26px;
+  filter: drop-shadow(var(--shadow-float));
+}
+
+.web-nav a {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 22px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.web-nav a.active {
+  background: var(--brand-primary);
+  color: var(--text-inverse);
+  font-weight: 700;
+}
+
+/* ---------- Map overlays ---------- */
+
+.map-chips {
+  position: absolute;
+  top: calc(16px + env(safe-area-inset-top));
+  left: 16px;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+}
+
+.chip-province {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 18px;
+  background: var(--brand-primary);
+  color: var(--text-inverse);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: var(--shadow-soft);
+}
+
+.icon-button {
+  position: absolute;
+  z-index: 10;
   display: grid;
-  place-content: center;
-  text-align: center;
-  padding: 16px;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  background: var(--surface-card);
+  box-shadow: var(--shadow-soft);
 }
 
-h1 {
-  color: var(--brand);
+.locate {
+  right: 16px;
+  bottom: calc(86px + env(safe-area-inset-bottom));
+}
+
+/* ---------- Province picker (Figma W07 bottom sheet) ---------- */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(21, 25, 28, 0.32);
+}
+
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 31;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 10px 20px calc(24px + env(safe-area-inset-bottom));
+  background: var(--surface-card);
+  border-radius: 24px 24px 0 0;
+  box-shadow: var(--shadow-sheet);
+}
+
+.grabber {
+  align-self: center;
+  width: 40px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--surface-border);
+}
+
+.sheet h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.sheet p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-secondary);
+}
+
+.province-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.province-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  min-height: 55px;
+  border-radius: 12px;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.province-row span {
+  flex: 1;
+}
+
+.province-row.selected {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+  font-weight: 700;
+}
+
+/* ---------- Placeholder pages ---------- */
+
+.page {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  overflow-y: auto;
+  padding: calc(24px + env(safe-area-inset-top)) 20px calc(96px + env(safe-area-inset-bottom));
+  background: var(--surface-bg);
+}
+
+.page h1 {
   margin: 0 0 8px;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.page p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+/* ---------- Desktop: left panel (Figma "Desktop panel header") ---------- */
+
+@media (min-width: 900px) {
+  .app {
+    display: grid;
+    grid-template-columns: var(--panel-width) 1fr;
+  }
+
+  .panel {
+    position: relative;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: var(--surface-card);
+    border-right: 1px solid var(--surface-border);
+  }
+
+  .map-area {
+    position: relative;
+    inset: auto;
+  }
+
+  .page {
+    position: static;
+    padding: 20px;
+    background: none;
+  }
+
+  .sheet {
+    left: calc(var(--panel-width) + 16px);
+    right: auto;
+    top: 60px;
+    bottom: auto;
+    width: 380px;
+    border-radius: 16px;
+  }
+
+  .sheet .grabber {
+    display: none;
+  }
+
+  .locate {
+    bottom: 16px;
+  }
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 10px 20px;
+}
+
+.brand-row strong {
+  flex: 1;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.sign-in {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px 9px 14px;
+  border: 1.5px solid var(--surface-border);
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.tabs {
+  display: flex;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.tabs a {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 12px 0 11px;
+  border-bottom: 3px solid transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.tabs a.active {
+  border-bottom-color: var(--brand-primary);
+  color: var(--brand-primary);
+  font-weight: 700;
 }
