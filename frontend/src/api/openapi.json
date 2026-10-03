@@ -1,0 +1,124 @@
+{
+  "openapi" : "3.1.0",
+  "info" : {
+    "title" : "RouteRank API",
+    "version" : "v1"
+  },
+  "servers" : [ {
+    "url" : "/"
+  } ],
+  "paths" : {
+    "/api/auth/google" : {
+      "post" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "google",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GoogleSignIn"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "401" : {
+            "description" : "Unauthorized"
+          },
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Me"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me" : {
+      "get" : {
+        "tags" : [ "me-controller" ],
+        "operationId" : "me",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Me"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/nonce" : {
+      "get" : {
+        "tags" : [ "auth-controller" ],
+        "operationId" : "nonce",
+        "responses" : {
+          "401" : {
+            "description" : "Unauthorized"
+          },
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Nonce"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "GoogleSignIn" : {
+        "type" : "object",
+        "properties" : {
+          "credential" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "credential" ]
+      },
+      "Me" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "liveAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "Nonce" : {
+        "type" : "object",
+        "properties" : {
+          "nonce" : {
+            "type" : "string"
+          }
+        }
+      }
+    }
+  }
+}
