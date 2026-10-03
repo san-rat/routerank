@@ -7,7 +7,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 @TestConfiguration(proxyBeanMethods = false)
-class TestcontainersConfiguration {
+public class TestcontainersConfiguration {
 
 	// Same image as infra/docker-compose.yml
 	static final DockerImageName POSTGIS = DockerImageName.parse("postgis/postgis:16-3.5")
