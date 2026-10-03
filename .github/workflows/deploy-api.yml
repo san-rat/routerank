@@ -1,0 +1,57 @@
+# Deploys the API to the Azure VM on every push to main that touches it (setup: infra/azure/README.md).
+# Needs repository secrets AZURE_VM_SSH_KEY and AZURE_VM_KNOWN_HOSTS,
+# and repository variables AZURE_VM_HOST and AZURE_VM_USER.
+name: Deploy API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'infra/azure/**'
+      - '.github/workflows/deploy-api.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Skipped until the VM is set up and its address saved as a repository variable
+    if: vars.AZURE_VM_HOST != ''
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/routerank-api
+      TARGET: ${{ vars.AZURE_VM_USER }}@${{ vars.AZURE_VM_HOST }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build and push the image
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker build -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:latest" backend
+          docker push --all-tags "$IMAGE"
+
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.AZURE_VM_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.AZURE_VM_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Deploy to the VM
+        run: |
+          scp infra/azure/compose.yml infra/azure/Caddyfile "$TARGET:routerank/"
+          echo "${{ secrets.GITHUB_TOKEN }}" | ssh "$TARGET" "docker login ghcr.io -u ${{ github.actor }} --password-stdin"
+          ssh "$TARGET" "cd routerank && docker compose pull && docker compose up -d --remove-orphans && docker logout ghcr.io && docker image prune -f"
+
+      - name: Smoke test
+        run: curl --fail --silent --show-error --retry 18 --retry-delay 10 --retry-all-errors "https://${{ vars.AZURE_VM_HOST }}/actuator/health"
