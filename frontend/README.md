@@ -8,7 +8,23 @@ npm run dev     # dev server on http://localhost:5173
 npm test        # Vitest
 npm run lint    # oxlint
 npm run build   # type-check and production build into dist/ (needs VITE_TILES_URL)
+npm run api:types  # regenerate src/api/schema.d.ts from src/api/openapi.json
 ```
+
+## The API
+
+The site always calls its own `/api/...`; nothing calls the API's address directly, so cookies stay
+first-party and no CORS is needed.
+
+- **Production:** the Pages Function in `functions/api/[[path]].ts` forwards `/api/*` to the API on Azure
+  with a shared secret (Pages settings `API_ORIGIN` and secret `PROXY_SECRET`; see `infra/azure/README.md`).
+- **Locally:** Vite's dev and preview servers do the same, to `http://localhost:8080` by default
+  (`API_PROXY_TARGET` and `ROUTERANK_AUTH_PROXY_SECRET` in `.env.development.local` change it).
+- **Types:** `src/api/openapi.json` is the API's spec, kept current by the backend's `OpenApiSpecTests`;
+  `npm run api:types` turns it into `src/api/schema.d.ts`, and CI fails if that file is out of date.
+- **Sign-in:** Google Identity Services, with the client ID in `VITE_GOOGLE_CLIENT_ID` (public; the
+  `VITE_GOOGLE_CLIENT_ID` repository variable for deploys). Google allows sign-in only from
+  `http://localhost:5173` and `https://routerank.pages.dev`, so preview deployments can't sign in.
 
 ## The map file
 
