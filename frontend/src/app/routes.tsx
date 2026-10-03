@@ -1,4 +1,5 @@
 import { Navigate, type RouteObject } from 'react-router'
+import { AccountPage } from '../auth/AccountPage'
 import { AppShell } from './AppShell'
 import { MapPage, Placeholder, ProvinceMap } from './pages'
 
@@ -19,7 +20,7 @@ export const routes: RouteObject[] = [
       { path: '/add/route', element: <Placeholder title="Add a route" phase={4} /> },
       { path: '/add/rank', element: <Placeholder title="Rank your route" phase={4} /> },
       { path: '/me/routes', element: <Placeholder title="My routes" phase={4} /> },
-      { path: '/me', element: <Placeholder title="Account" phase={3} /> },
+      { path: '/me', element: <AccountPage /> },
       { path: '/me/privacy', element: <Placeholder title="Privacy & data" phase={7} /> },
       { path: '/privacy', element: <Placeholder title="Privacy policy" phase={7} /> },
       { path: '*', element: <Navigate to="/" replace /> },
