@@ -26,6 +26,29 @@ first-party and no CORS is needed.
   `VITE_GOOGLE_CLIENT_ID` repository variable for deploys). Google allows sign-in only from
   `http://localhost:5173` and `https://routerank.pages.dev`, so preview deployments can't sign in.
 
+### Adding routes locally
+
+Adding routes needs the API with a routing graph and the same road import in its database (see
+`data/README.md`, "Routing graph"). To try the flow without a Google account, run the API with its
+test-only stand-in for Google, from `backend/`, against the Compose database:
+
+```bash
+SERVER_PORT=8090 SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/routerank SPRING_DATASOURCE_USERNAME=routerank SPRING_DATASOURCE_PASSWORD=routerank SPRING_FLYWAY_LOCATIONS=classpath:db/migration ROUTERANK_ROUTING_GRAPH_LOCATION=../data/downloads/graph-2026-10-01 ROUTERANK_ROUTING_OSM_FILE= ROUTERANK_AUTH_PROXY_SECRET=local-dev-proxy-secret ./gradlew bootTestRun
+```
+
+Then, with `API_PROXY_TARGET=http://localhost:8090` in `.env.development.local`, sign in from the
+browser console on http://localhost:5173:
+
+```js
+const { nonce } = await (await fetch('/api/auth/nonce')).json()
+const credential = await (await fetch(`/api/auth/dev-token?sub=dev&nonce=${nonce}`)).text()
+const xsrf = decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)[1])
+await fetch('/api/auth/google', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': xsrf }, body: JSON.stringify({ credential }) })
+localStorage.setItem('routerank.signedIn', '1')
+```
+
+`/api/auth/dev-token` exists only in that test launcher (`backend/src/test`), never in the built API.
+
 ## The map file
 
 `VITE_TILES_URL` is the full URL of the Sri Lanka PMTiles file. In development it is `/tiles/sri-lanka-YYYY-MM-DD.pmtiles` (`.env.development`), served from `../data/downloads` by the dev server; build the file first with `../data/basemap/build.sh`. In production it is the file's R2 address, set as the `VITE_TILES_URL` repository variable for the deploy workflow.
