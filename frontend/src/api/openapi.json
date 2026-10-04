@@ -194,6 +194,24 @@
         }
       }
     },
+    "/api/admin/scoring/run" : {
+      "post" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "runScoring",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Run"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/places" : {
       "get" : {
         "tags" : [ "places-controller" ],
@@ -314,6 +332,29 @@
         },
         "required" : [ "end", "start", "waypoints" ]
       },
+      "Busiest" : {
+        "type" : "object",
+        "properties" : {
+          "slug" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "points" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "people" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "rank" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
       "RouteView" : {
         "type" : "object",
         "properties" : {
@@ -375,8 +416,12 @@
           "updatedAt" : {
             "type" : "string",
             "format" : "date-time"
+          },
+          "busiest" : {
+            "$ref" : "#/components/schemas/Busiest"
           }
-        }
+        },
+        "required" : [ "back", "createdAt", "end", "id", "lengthBackM", "lengthOutM", "name", "out", "slot", "start", "updatedAt", "waypoints" ]
       },
       "Order" : {
         "type" : "object",
@@ -580,6 +625,41 @@
           "liveAt" : {
             "type" : "string",
             "format" : "date-time"
+          }
+        }
+      },
+      "Run" : {
+        "type" : "object",
+        "properties" : {
+          "at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "segments" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "stretches" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "ranked" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "uploaded" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "deleted" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "published" : {
+            "type" : "boolean"
+          },
+          "note" : {
+            "type" : "string"
           }
         }
       },

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
 import lk.routerank.roads.LatLon;
+import lk.routerank.scoring.Stretches.Busiest;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
@@ -58,9 +59,13 @@ final class Views {
 	/**
 	 * One of the user's routes.
 	 * @param waypoints the drag points, snapped
+	 * @param busiest its busiest stretch at the last scoring run; absent until a run has scored its roads
 	 */
+	@Schema(requiredProperties = { "id", "slot", "name", "start", "end", "waypoints", "out", "back", "lengthOutM",
+			"lengthBackM", "createdAt", "updatedAt" })
 	record RouteView(long id, int slot, String name, LatLon start, LatLon end, List<LatLon> waypoints, double[][] out,
-			double[][] back, double lengthOutM, double lengthBackM, Instant createdAt, Instant updatedAt) {
+			double[][] back, double lengthOutM, double lengthBackM, Instant createdAt, Instant updatedAt,
+			@JsonInclude(JsonInclude.Include.NON_NULL) @Schema(requiredMode = RequiredMode.NOT_REQUIRED) Busiest busiest) {
 	}
 
 	/**
