@@ -31,7 +31,7 @@ TABLES = {
 def main() -> None:
     from testcontainers.community.postgres import PostgresContainer
 
-    with PostgresContainer("postgis/postgis:16-3.5", driver=None) as pg:
+    with PostgresContainer("postgis/postgis:18-3.6", driver=None) as pg:
         url = pg.get_connection_url()
         with psycopg.connect(url, autocommit=True) as conn:
             for path in migration_files():

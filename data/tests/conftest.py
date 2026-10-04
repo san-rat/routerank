@@ -20,7 +20,7 @@ def migration_files() -> list[Path]:
 def database_url():
     # Same image as infra/docker-compose.yml. Migrations are applied in Flyway's
     # order; the backend's own Testcontainers test runs them through Flyway itself.
-    with PostgresContainer("postgis/postgis:16-3.5", driver=None) as pg:
+    with PostgresContainer("postgis/postgis:18-3.6", driver=None) as pg:
         url = pg.get_connection_url()
         with psycopg.connect(url, autocommit=True) as conn:
             for path in migration_files():
