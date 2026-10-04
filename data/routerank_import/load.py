@@ -22,13 +22,13 @@ def stage(conn: psycopg.Connection, pieces: list[Piece], provinces: list[Provinc
         CREATE TEMP TABLE stg_piece (
             piece_id serial PRIMARY KEY, osm_way_id bigint, from_node bigint, to_node bigint,
             seq int, road_class text, is_link boolean, oneway smallint, oneway_bus smallint,
-            wkt text, geom geometry(LineString, 4326))""")
+            name text, ref text, wkt text, geom geometry(LineString, 4326))""")
     with conn.cursor().copy(
             "COPY stg_piece (osm_way_id, from_node, to_node, seq, road_class, is_link, oneway, "
-            "oneway_bus, wkt) FROM STDIN") as copy:
+            "oneway_bus, name, ref, wkt) FROM STDIN") as copy:
         for p in pieces:
             copy.write_row((p.osm_way_id, p.from_node, p.to_node, p.seq, p.road_class,
-                            p.is_link, p.oneway, p.oneway_bus, p.wkt))
+                            p.is_link, p.oneway, p.oneway_bus, p.name, p.ref, p.wkt))
     conn.execute("UPDATE stg_piece SET geom = ST_GeomFromText(wkt, 4326)")
     conn.execute("CREATE INDEX ON stg_piece USING gist (geom)")
 

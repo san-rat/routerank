@@ -12,7 +12,7 @@ import osmium
 
 MAIN_ROADS = {"trunk", "primary", "secondary"}
 LINK_ROADS = {f"{c}_link" for c in MAIN_ROADS}
-PLACE_KINDS = ("city", "town", "suburb", "village")
+PLACE_KINDS = ("city", "town", "suburb", "quarter", "neighbourhood", "village")
 
 
 @dataclass(frozen=True)
@@ -25,6 +25,8 @@ class Piece:
     is_link: bool
     oneway: int
     oneway_bus: int | None
+    name: str | None  # English name, see english_name
+    ref: str | None  # road number, e.g. "A4"
     wkt: str
 
 
@@ -99,6 +101,7 @@ def split_ways(path: str) -> tuple[list[Piece], dict[str, int]]:
     for way in _main_road_ways(path, with_locations=True):
         road_class, is_link = road_class_of(way.tags.get("highway"))
         oneway, oneway_bus = parse_oneway(way.tags), parse_oneway_bus(way.tags)
+        name, ref = english_name(way.tags), road_ref(way.tags)
         nodes = list(way.nodes)
         if len(nodes) < 2:
             stats["ways_too_short"] += 1
@@ -113,7 +116,7 @@ def split_ways(path: str) -> tuple[list[Piece], dict[str, int]]:
             if i == len(nodes) - 1 or use[nodes[i].ref] >= 2:
                 line = ", ".join(f"{x:.7f} {y:.7f}" for x, y in coords[start : i + 1])
                 pieces.append(Piece(way.id, nodes[start].ref, nodes[i].ref, seq, road_class,
-                                    is_link, oneway, oneway_bus, f"LINESTRING({line})"))
+                                    is_link, oneway, oneway_bus, name, ref, f"LINESTRING({line})"))
                 start, seq = i, seq + 1
         stats["ways"] += 1
     stats["pieces"] = len(pieces)
@@ -130,8 +133,19 @@ def english_name(tags) -> str | None:
     return name or None
 
 
+def road_ref(tags) -> str | None:
+    """The road number (ref), e.g. "A4"; several are kept as tagged ("A2;B84")."""
+    return (tags.get("ref") or "").strip() or None
+
+
+def road_names(path: str) -> dict[int, tuple[str | None, str | None]]:
+    """English name and ref of every main-road way, by OSM way ID."""
+    return {way.id: (english_name(way.tags), road_ref(way.tags))
+            for way in _main_road_ways(path, with_locations=False)}
+
+
 def places(path: str) -> list[Place]:
-    """City, town, suburb and village points with an English name."""
+    """City, town, suburb, quarter, neighbourhood and village points with an English name."""
     found = []
     for node in osmium.FileProcessor(path, osmium.osm.NODE):
         kind = node.tags.get("place")

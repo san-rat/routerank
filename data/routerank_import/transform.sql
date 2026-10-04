@@ -66,10 +66,10 @@ FROM islands GROUP BY piece_id, province, grp;
 -- 4. Cap length: split each merged piece into n equal parts of at most cap_m,
 --    then number parts per (way, from_node, to_node) in order along the way.
 INSERT INTO road_segment (import_run_id, osm_way_id, from_node, to_node, part, road_class,
-                          is_link, oneway, oneway_bus, province, geom, length_m)
+                          is_link, oneway, oneway_bus, name, ref, province, geom, length_m)
 WITH sized AS (
     SELECT m.*, p.osm_way_id, p.from_node, p.to_node, p.seq, p.road_class, p.is_link,
-           p.oneway, p.oneway_bus, p.geom AS piece_geom,
+           p.oneway, p.oneway_bus, p.name, p.ref, p.geom AS piece_geom,
            ST_Length(ST_LineSubstring(p.geom, m.f0, m.f1)::geography) AS len_m
     FROM stg_merged m JOIN stg_piece p USING (piece_id)
 ),
@@ -86,6 +86,6 @@ parts AS (
 )
 SELECT %(run_id)s, osm_way_id, from_node, to_node,
        (row_number() OVER (PARTITION BY osm_way_id, from_node, to_node ORDER BY seq, f0, i) - 1)::smallint,
-       road_class, is_link, oneway, oneway_bus, province, geom, ST_Length(geom::geography)
+       road_class, is_link, oneway, oneway_bus, name, ref, province, geom, ST_Length(geom::geography)
 FROM parts
 WHERE ST_Length(geom) > 0;

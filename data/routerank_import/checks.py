@@ -78,6 +78,10 @@ def run_checks(conn: psycopg.Connection, run_id: int, expected_provinces: int | 
             WHERE import_run_id = %(run)s GROUP BY 1 ORDER BY 2 DESC"""):
         r.info(f"  {province:<16} {km:>9,.1f} km  {n:>7,} segments")
 
+    named_km, total_km = q("""SELECT sum(length_m) FILTER (WHERE name IS NOT NULL OR ref IS NOT NULL) / 1000,
+                                     sum(length_m) / 1000 FROM road_segment WHERE import_run_id = %(run)s""")[0]
+    r.info(f"\nkm with a road name or number: {named_km or 0:,.1f} of {total_km or 0:,.1f}")
+
     r.info("\nplaces by kind:")
     kinds = q("SELECT kind, count(*) FROM place WHERE import_run_id = %(run)s GROUP BY 1 ORDER BY 2 DESC")
     for kind, n in kinds:

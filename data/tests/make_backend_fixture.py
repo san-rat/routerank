@@ -23,7 +23,7 @@ OUT = Path(__file__).parents[2] / "backend" / "src" / "test" / "resources" / "db
 TABLES = {
     "import_run": "id, extract_date, source_url, started_at, finished_at, segment_count",
     "road_segment": "id, import_run_id, osm_way_id, from_node, to_node, part, road_class, is_link, oneway, "
-                    "oneway_bus, province, geom, length_m",
+                    "oneway_bus, name, ref, province, geom, length_m",
     "place": "id, import_run_id, osm_id, kind, name, geom",
 }
 
@@ -50,7 +50,7 @@ def main() -> None:
                 lines.append(",\n".join(f"({r[0]})" for r in rows) + ";")
                 lines.append(f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), (SELECT max(id) FROM {table}));")
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    OUT.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     print(f"wrote {OUT} ({OUT.stat().st_size // 1024} KB)")
 
 
