@@ -46,6 +46,26 @@ Use one region for everything: Central India or Southeast Asia, whichever your s
 6. **Pages:** in the Cloudflare Pages project's production settings, set the variable `API_ORIGIN` to
    `https://<label>.<region>.cloudapp.azure.com` and the secret `PROXY_SECRET` to the same value as
    `ROUTERANK_AUTH_PROXY_SECRET`.
+7. **Rankings on R2 (Phase 5):** the scoring job publishes the heatmap and leaderboards to their own bucket.
+   - In Cloudflare, create the bucket `routerank-data`, turn on its public r2.dev address, and set its CORS
+     rules: `npx wrangler r2 bucket cors set routerank-data --file data/rankings/cors.json`.
+   - Under R2, "Manage API tokens", create a token with **Object Read & Write** on `routerank-data` only.
+   - Add to `~/routerank/.env` (then `chmod 600` again and restart compose):
+
+     ```bash
+     ROUTERANK_SCORING_PUBLISH_ENDPOINT=https://<account id>.r2.cloudflarestorage.com
+     ROUTERANK_SCORING_PUBLISH_BUCKET=routerank-data
+     ROUTERANK_SCORING_PUBLISH_ACCESS_KEY_ID=<token's Access Key ID>
+     ROUTERANK_SCORING_PUBLISH_SECRET_ACCESS_KEY=<token's Secret Access Key>
+     ROUTERANK_ADMIN_EMAILS=<your Google email>
+     ```
+
+   - Set the repository variable `VITE_DATA_URL` to the bucket's public address
+     (`https://pub-<id>.r2.dev`) so the site reads the rankings from it.
+
+   Without these the job still scores every 30 minutes (My routes shows busiest stretches) but publishes
+   nothing, and the log says so. It stays inside R2's free tier: files are named by content hash and only
+   new ones are uploaded, and it stops uploading at 800,000 writes in a month (`publish_usage`).
 
 ## Deploys
 

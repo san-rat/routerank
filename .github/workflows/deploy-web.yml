@@ -1,6 +1,6 @@
 # Deploys the website to Cloudflare Pages on every push to main.
 # Needs repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID,
-# and repository variables VITE_TILES_URL, VITE_GOOGLE_CLIENT_ID and CLOUDFLARE_PAGES_PROJECT.
+# and repository variables VITE_TILES_URL, VITE_GOOGLE_CLIENT_ID, VITE_DATA_URL and CLOUDFLARE_PAGES_PROJECT.
 # The /api proxy (functions/) reads API_ORIGIN and PROXY_SECRET from the Pages project's settings.
 name: Deploy web
 
@@ -38,6 +38,7 @@ jobs:
         env:
           VITE_TILES_URL: ${{ vars.VITE_TILES_URL }}
           VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+          VITE_DATA_URL: ${{ vars.VITE_DATA_URL }}
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v4
         with:
