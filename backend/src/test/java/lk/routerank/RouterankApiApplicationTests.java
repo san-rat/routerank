@@ -49,9 +49,9 @@ class RouterankApiApplicationTests {
 				INSERT INTO app_user (google_sub, email, live_at)
 				VALUES ('slot-test', 'slot@example.com', now() + interval '24 hours') RETURNING id""", Long.class);
 		String insert = """
-				INSERT INTO route (user_id, slot, kind, start_point, end_point, geom_out, geom_back,
+				INSERT INTO route (user_id, slot, kind, name, start_point, end_point, geom_out, geom_back,
 				  length_out_m, length_back_m, removed_at)
-				VALUES (?, 1, 'new', ST_Point(79.85, 6.93, 4326), ST_Point(79.86, 6.93, 4326),
+				VALUES (?, 1, 'new', 'A → B', ST_Point(79.85, 6.93, 4326), ST_Point(79.86, 6.93, 4326),
 				  ST_GeomFromText('LINESTRING(79.85 6.93, 79.86 6.93)', 4326),
 				  ST_GeomFromText('LINESTRING(79.86 6.93, 79.85 6.93)', 4326), 1100, 1100, ?::timestamptz)""";
 
