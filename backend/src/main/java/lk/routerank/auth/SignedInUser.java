@@ -4,7 +4,7 @@ import java.io.Serializable;
 
 /**
  * The principal kept in the session (Spring Session stores it serialized in PostgreSQL). Only the account
- * ID; everything else is read fresh from the database.
+ * ID; everything else is read fresh from the database. Other modules get it with {@code @AuthenticationPrincipal}.
  */
-record SignedInUser(long id) implements Serializable {
+public record SignedInUser(long id) implements Serializable {
 }
