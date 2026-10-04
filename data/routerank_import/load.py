@@ -11,6 +11,11 @@ CAP_M = 1000  # segments are at most ~1 km
 SLIVER_M = 25  # border slivers shorter than this join their neighbour
 
 
+def pg_array(values: tuple[str, ...]) -> str:
+    """A text[] literal: {"Pitakotuwa","Purakkottai"}."""
+    return "{" + ",".join('"' + v.replace("\\", "\\\\").replace('"', '\\"') + '"' for v in values) + "}"
+
+
 def start_run(conn: psycopg.Connection, extract_date: datetime, source_url: str) -> int:
     return conn.execute(
         "INSERT INTO import_run (extract_date, source_url) VALUES (%s, %s) RETURNING id",
@@ -22,13 +27,13 @@ def stage(conn: psycopg.Connection, pieces: list[Piece], provinces: list[Provinc
         CREATE TEMP TABLE stg_piece (
             piece_id serial PRIMARY KEY, osm_way_id bigint, from_node bigint, to_node bigint,
             seq int, road_class text, is_link boolean, oneway smallint, oneway_bus smallint,
-            wkt text, geom geometry(LineString, 4326))""")
+            name text, ref text, wkt text, geom geometry(LineString, 4326))""")
     with conn.cursor().copy(
             "COPY stg_piece (osm_way_id, from_node, to_node, seq, road_class, is_link, oneway, "
-            "oneway_bus, wkt) FROM STDIN") as copy:
+            "oneway_bus, name, ref, wkt) FROM STDIN") as copy:
         for p in pieces:
             copy.write_row((p.osm_way_id, p.from_node, p.to_node, p.seq, p.road_class,
-                            p.is_link, p.oneway, p.oneway_bus, p.wkt))
+                            p.is_link, p.oneway, p.oneway_bus, p.name, p.ref, p.wkt))
     conn.execute("UPDATE stg_piece SET geom = ST_GeomFromText(wkt, 4326)")
     conn.execute("CREATE INDEX ON stg_piece USING gist (geom)")
 
@@ -55,7 +60,8 @@ def build_segments(conn: psycopg.Connection, run_id: int) -> int:
 
 
 def load_places(conn: psycopg.Connection, run_id: int, places: list[Place]) -> int:
-    with conn.cursor().copy("COPY place (import_run_id, osm_id, kind, name, geom) FROM STDIN") as copy:
+    with conn.cursor().copy("COPY place (import_run_id, osm_id, kind, name, aliases, geom) FROM STDIN") as copy:
         for p in places:
-            copy.write_row((run_id, p.osm_id, p.kind, p.name, f"SRID=4326;POINT({p.lon:.7f} {p.lat:.7f})"))
+            copy.write_row((run_id, p.osm_id, p.kind, p.name, pg_array(p.aliases),
+                            f"SRID=4326;POINT({p.lon:.7f} {p.lat:.7f})"))
     return len(places)

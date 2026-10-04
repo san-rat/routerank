@@ -5,14 +5,21 @@ way when it is shared by two or more main-road ways, or is a way's first or
 last node. Province and length splitting happen later, in PostGIS.
 """
 
+import csv
+import math
 from collections import Counter
 from dataclasses import dataclass
+from pathlib import Path
 
 import osmium
 
 MAIN_ROADS = {"trunk", "primary", "secondary"}
 LINK_ROADS = {f"{c}_link" for c in MAIN_ROADS}
-PLACE_KINDS = ("city", "town", "suburb", "village")
+PLACE_KINDS = ("city", "town", "suburb", "quarter", "neighbourhood", "village")
+# Well-known areas missing from OSM; see data/README.md, "Places OSM doesn't have"
+EXTRA_PLACES = Path(__file__).resolve().parents[1] / "places-extra.csv"
+# An extra place OSM now has, under its name or an alias, within this distance is left out
+SAME_PLACE_M = 2000
 
 
 @dataclass(frozen=True)
@@ -25,6 +32,8 @@ class Piece:
     is_link: bool
     oneway: int
     oneway_bus: int | None
+    name: str | None  # English name, see english_name
+    ref: str | None  # road number, e.g. "A4"
     wkt: str
 
 
@@ -43,6 +52,7 @@ class Place:
     name: str
     lon: float
     lat: float
+    aliases: tuple[str, ...] = ()  # other names search also finds
 
 
 def road_class_of(highway: str | None) -> tuple[str, bool] | None:
@@ -99,6 +109,7 @@ def split_ways(path: str) -> tuple[list[Piece], dict[str, int]]:
     for way in _main_road_ways(path, with_locations=True):
         road_class, is_link = road_class_of(way.tags.get("highway"))
         oneway, oneway_bus = parse_oneway(way.tags), parse_oneway_bus(way.tags)
+        name, ref = english_name(way.tags), road_ref(way.tags)
         nodes = list(way.nodes)
         if len(nodes) < 2:
             stats["ways_too_short"] += 1
@@ -113,7 +124,7 @@ def split_ways(path: str) -> tuple[list[Piece], dict[str, int]]:
             if i == len(nodes) - 1 or use[nodes[i].ref] >= 2:
                 line = ", ".join(f"{x:.7f} {y:.7f}" for x, y in coords[start : i + 1])
                 pieces.append(Piece(way.id, nodes[start].ref, nodes[i].ref, seq, road_class,
-                                    is_link, oneway, oneway_bus, f"LINESTRING({line})"))
+                                    is_link, oneway, oneway_bus, name, ref, f"LINESTRING({line})"))
                 start, seq = i, seq + 1
         stats["ways"] += 1
     stats["pieces"] = len(pieces)
@@ -130,8 +141,19 @@ def english_name(tags) -> str | None:
     return name or None
 
 
+def road_ref(tags) -> str | None:
+    """The road number (ref), e.g. "A4"; several are kept as tagged ("A2;B84")."""
+    return (tags.get("ref") or "").strip() or None
+
+
+def road_names(path: str) -> dict[int, tuple[str | None, str | None]]:
+    """English name and ref of every main-road way, by OSM way ID."""
+    return {way.id: (english_name(way.tags), road_ref(way.tags))
+            for way in _main_road_ways(path, with_locations=False)}
+
+
 def places(path: str) -> list[Place]:
-    """City, town, suburb and village points with an English name."""
+    """City, town, suburb, quarter, neighbourhood and village points with an English name."""
     found = []
     for node in osmium.FileProcessor(path, osmium.osm.NODE):
         kind = node.tags.get("place")
@@ -140,6 +162,39 @@ def places(path: str) -> list[Place]:
         name = english_name(node.tags)
         if name:
             found.append(Place(node.id, kind, name, node.location.lon, node.location.lat))
+    return found
+
+
+def distance_m(a: Place, b: Place) -> float:
+    """Equirectangular distance: plenty for a few kilometres."""
+    x = math.radians(b.lon - a.lon) * math.cos(math.radians((a.lat + b.lat) / 2))
+    y = math.radians(b.lat - a.lat)
+    return math.hypot(x, y) * 6_371_000
+
+
+def extra_places(osm: list[Place], path: Path = EXTRA_PLACES) -> list[Place]:
+    """Rows of places-extra.csv that OSM still lacks, with negative IDs so they never clash with OSM nodes.
+
+    A row whose name or an alias OSM now has within 2 km is left out, with a note to drop the row.
+    """
+    found = []
+    with open(path, encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f):
+            aliases = tuple(a.strip() for a in row["aliases"].split(";") if a.strip())
+            place = Place(int(row["id"]), row["kind"], row["name"].strip(), float(row["lon"]), float(row["lat"]),
+                          aliases)
+            if place.osm_id >= 0 or place.kind not in PLACE_KINDS or not place.name:
+                raise ValueError(f"{path.name}: bad row for {row['name']!r} (id must be negative, kind one of "
+                                 f"{', '.join(PLACE_KINDS)})")
+            names = {n.lower() for n in (place.name, *aliases)}
+            mapped = next((p for p in osm if p.name.lower() in names and distance_m(p, place) < SAME_PLACE_M), None)
+            if mapped:
+                print(f"{place.name} is in OpenStreetMap now (node {mapped.osm_id}, {mapped.name!r}): "
+                      f"remove its row from {path.name}")
+                continue
+            found.append(place)
+    if len({p.osm_id for p in found}) != len(found):
+        raise ValueError(f"{path.name}: IDs must be unique")
     return found
 
 

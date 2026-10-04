@@ -4,11 +4,11 @@ Turns the OpenStreetMap extract for Sri Lanka into `road_segment` rows (the smal
 
 ## What it does
 
-1. **Filter** (osmium): keep trunk, primary and secondary roads and their `_link` roads, admin boundaries, and `place=city/town/suburb/village` points. Expressways (`motorway`) are left out.
+1. **Filter** (osmium): keep trunk, primary and secondary roads and their `_link` roads, admin boundaries, and `place=city/town/suburb/quarter/neighbourhood/village` points. Expressways (`motorway`) are left out.
 2. **Split ways** (pyosmium): cut each way at every node shared by two or more main-road ways. Each piece is keyed by (osm_way_id, from_node, to_node, part).
 3. **Provinces**: the nine `admin_level=4` boundaries with an `ISO3166-2` code starting `LK-`. Pieces are cut where they touch a border and take the province of their midpoint.
 4. **Length cap**: pieces over 1 km are cut into equal parts. Geometry is EPSG:4326; `length_m` uses `::geography`.
-5. **Places**: place points with an English name (`name:en`, or a `name` with no Sinhala or Tamil letters) go to `place`. There is no external geocoder.
+5. **Places**: place points with an English name (`name:en`, or a `name` with no Sinhala or Tamil letters) go to `place`. There is no external geocoder. Each segment also keeps its way's English name and `ref` (road number), so stretches never merge across a change of road. Well-known areas OSM doesn't have yet are added from `places-extra.csv` (see "Places OSM doesn't have").
 6. **Checks**: the import fails and rolls back unless every segment has a province, class and length, none is over the cap, the largest connected network holds at least 95% of main-road km, and some places loaded. It prints km per road class and per province, and places per kind.
 
 Each run is recorded in `import_run` with the extract's date.
@@ -63,6 +63,28 @@ docker compose exec db pg_dump -U routerank -d routerank_export -Fc --data-only 
 ```
 
 Copy it out (`docker compose cp db:/tmp/roads.dump ../data/downloads/roads-2026-10-01.dump`), open the Azure database firewall to your IP with a temporary rule, run `data/production/restore.sh roads-2026-10-01.dump <server>.postgres.database.azure.com <admin user>` (it asks for the password, applies the migrations, restores, and fixes the ID sequences), then delete the firewall rule. The script refuses to run when production already has an import: a re-import must also re-match stored routes onto the new segments (Phase 8).
+
+### Adding names to an existing import
+
+Production's import predates road names, refs, the `quarter` and `neighbourhood` places and `places-extra.csv` (Phase 5). Rather than re-import (which would change the segment IDs saved routes point to), `enrich` writes SQL that updates the same run in place from the same filtered file. Re-filter first so the file has the new place kinds (same extract, same date), then generate the SQL:
+
+```bash
+docker compose --profile tools build import
+```
+```bash
+docker compose --profile tools run --rm --no-deps import filter /work/sri-lanka-latest.osm.pbf /work/main-roads.osm.pbf
+```
+```bash
+docker compose --profile tools run --rm --no-deps import enrich /work/main-roads.osm.pbf --run-id 1 /work/enrich-2026-10-01.sql
+```
+
+Apply it locally with `docker compose exec -T db psql -U routerank -d routerank -v ON_ERROR_STOP=1 --single-transaction -f - < ../data/downloads/enrich-2026-10-01.sql`, and to production like the restore: open the firewall to your IP with a temporary rule, run `data/production/enrich.sh enrich-2026-10-01.sql <server>.postgres.database.azure.com <admin user>` (it asks for the password, applies the migrations, then runs the SQL in one transaction, which refuses to run against an import with another extract date), then delete the rule. The routing graph doesn't change.
+
+## Places OSM doesn't have
+
+`places-extra.csv` lists well-known areas that are missing from OSM as place points, so search and naming can still find them: Pettah, for now. Columns: a negative `id` (so it never clashes with an OSM node), `kind` (as for OSM places), `name`, `lat`, `lon`, `aliases` (other names search also finds, separated by `;`), and `source` (where the coordinates and names were checked, and when). Add only areas that are really missing (search the `place` table first: Colombo Fort, for one, is in OSM as "Fort"), with coordinates from a source you can cite.
+
+`load` and `enrich` both add the rows. Once an extract has the place itself, under its name or an alias within 2 km, the row is skipped and the import prints "… is in OpenStreetMap now … remove its row"; delete the row then. The best fix is to add the place to OSM.
 
 ## Spot checks
 

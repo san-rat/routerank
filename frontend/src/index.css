@@ -1551,3 +1551,647 @@ a {
     bottom: 16px;
   }
 }
+
+/* ---------- Rankings on the map: legend (W02), no votes (W08), stretch detail (W04) ---------- */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.legend {
+  position: absolute;
+  left: 16px;
+  bottom: calc(86px + env(safe-area-inset-bottom));
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 178px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--surface-card);
+  box-shadow: 0 4px 18px rgba(15, 26, 26, 0.1);
+  font-size: 11px;
+}
+
+.legend strong {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.heat-scale {
+  width: 150px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #a6ddd0 0%, #5fc2ae 35%, #249c8b 65%, #0a524d 100%);
+}
+
+.legend-ends {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-tertiary);
+}
+
+.legend small {
+  font-size: 11px;
+  font-weight: 500;
+  color: #91999c;
+}
+
+.no-votes {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  z-index: 12;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: min(350px, calc(100% - 32px));
+  padding: 24px 22px;
+  border-radius: 24px;
+  background: var(--surface-card);
+  box-shadow: 0 4px 18px rgba(15, 26, 26, 0.15);
+  text-align: center;
+}
+
+.no-votes-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 32px;
+  background: var(--brand-primary-soft);
+}
+
+.no-votes h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.no-votes p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-secondary);
+}
+
+.no-votes .primary-button img,
+.stretch-actions .primary-button img {
+  filter: brightness(0) invert(1);
+}
+
+.stretch-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 70dvh;
+  overflow-y: auto;
+  padding: 10px 20px calc(24px + env(safe-area-inset-bottom));
+  border-radius: 24px 24px 0 0;
+  background: var(--surface-card);
+  box-shadow: var(--shadow-sheet);
+}
+
+.stretch-sheet[aria-busy="true"] {
+  min-height: 200px;
+}
+
+.stretch-sheet > h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.stretch-sheet > p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-secondary);
+}
+
+.stretch-sheet .footnote {
+  margin: -6px 0 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.stretch-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.stretch-header > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.stretch-header h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.stretch-header p {
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.rank-badge {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--brand-primary);
+  color: var(--text-inverse);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.rank-badge.unranked {
+  background: var(--surface-bg);
+  color: var(--text-secondary);
+}
+
+.close-button {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  background: var(--surface-bg);
+}
+
+.stats {
+  display: flex;
+  gap: 10px;
+}
+
+.stats span {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--surface-bg);
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.stats strong {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--brand-primary);
+}
+
+.breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.breakdown > strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.split-bar {
+  display: flex;
+  gap: 3px;
+}
+
+.split-bar span {
+  flex-basis: 0;
+  min-width: 10px;
+  height: 10px;
+  border-radius: 5px;
+}
+
+.split-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.split-legend span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.split-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.stretch-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.share-button {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 26px;
+  background: var(--brand-primary-soft);
+}
+
+.share-toast {
+  position: static;
+}
+
+.heat-tooltip .maplibregl-popup-content {
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: var(--shadow-soft);
+}
+
+.heat-tooltip .maplibregl-popup-tip {
+  display: none;
+}
+
+.busiest {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand-primary);
+}
+
+/* ---------- Leaderboards (W10, W11) and How ranking works (W12) ---------- */
+
+.leaderboard-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.leaderboard-header > div {
+  flex: 1;
+}
+
+.page .leaderboard-header h1 {
+  margin: 0 0 2px;
+}
+
+.leaderboard-header p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+.leaderboard-header .round-button,
+.top-bar .round-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  background: var(--surface-card);
+}
+
+.segmented {
+  display: flex;
+  gap: 4px;
+  height: 44px;
+  padding: 4px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  background: var(--surface-border);
+}
+
+.segmented a {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.segmented a.active {
+  background: var(--surface-card);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.province-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
+  background: var(--surface-card);
+  text-align: left;
+}
+
+.province-select span {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.province-select strong {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.province-select small,
+.province-row small {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.leader-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--surface-card);
+}
+
+.leader-row .rank {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--surface-bg);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-secondary);
+}
+
+.leader-row .rank.top {
+  background: var(--brand-primary);
+  color: var(--text-inverse);
+}
+
+.leader-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.leader-main strong {
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.leader-main > span:not(.score-bar) {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.score-bar {
+  display: flex;
+  width: 170px;
+  max-width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-bg);
+}
+
+.score-bar span {
+  height: 6px;
+  border-radius: 3px;
+}
+
+.leader-score {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.leader-score strong {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--brand-primary);
+}
+
+.leader-score small {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.leader-row.loading .line {
+  display: block;
+  width: 110px;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--surface-border);
+}
+
+.leader-row.loading .line.long {
+  width: 160px;
+}
+
+.leaderboard-list.compact {
+  margin-top: 16px;
+}
+
+.leaderboard-list.compact .leader-row {
+  border: 1px solid var(--surface-border);
+}
+
+.empty-list {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.text-link {
+  display: inline-block;
+  margin-top: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--brand-primary);
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.page .top-bar h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.how-example,
+.how-rule {
+  margin-bottom: 14px;
+  background: var(--surface-card);
+}
+
+.how-example {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 20px;
+}
+
+.how-example h2,
+.how-rule h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.how-rule h2 {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.page .how-example p,
+.page .how-rule p {
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.how-diagram {
+  position: relative;
+  width: 338px;
+  max-width: 100%;
+  height: 196px;
+  margin: 0;
+}
+
+.how-diagram img {
+  position: absolute;
+  inset: 0;
+}
+
+.how-diagram span,
+.how-diagram b,
+.how-diagram em {
+  position: absolute;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.how-diagram span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.how-diagram b {
+  top: 138px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.how-diagram em {
+  top: 160px;
+  padding: 4px 8px;
+  border-radius: 10px;
+  background: var(--surface-bg);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.how-diagram em.top {
+  background: var(--brand-primary);
+  color: var(--text-inverse);
+}
+
+.how-rule {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 16px;
+}
+
+.how-rule p {
+  margin-top: 3px;
+}
+
+.how-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--brand-primary-soft);
+}
+
+@media (min-width: 900px) {
+  .legend {
+    bottom: 16px;
+  }
+
+  .stretch-sheet {
+    position: static;
+    max-height: none;
+    padding: 20px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .page.leaderboard,
+  .page.how-it-works {
+    flex: 1;
+    background: var(--surface-bg);
+  }
+}

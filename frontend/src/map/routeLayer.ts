@@ -119,9 +119,14 @@ export function createRouteLayer(map: MapLibreMap, editing: RouteEditing = {}) {
     map.on('mouseleave', `${SOURCE}-hit`, noPointer)
   })
 
-  function update(drawing: RouteDrawing) {
+  // A run that waited for the style uses the newest drawing, so an older update can never land after a newer one
+  let latest: RouteDrawing | null = null
+
+  function update(next: RouteDrawing) {
+    latest = next
     whenStyleReady(map, () => {
-      if (removed) return
+      if (removed || !latest) return
+      const drawing = latest
       const features = [
         ...(drawing.out.length > 1
           ? [{ type: 'Feature' as const, properties: { kind: 'out' }, geometry: { type: 'LineString' as const, coordinates: drawing.out } }]
@@ -135,6 +140,7 @@ export function createRouteLayer(map: MapLibreMap, editing: RouteEditing = {}) {
       ;(map.getSource(SOURCE) as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features })
     })
 
+    const drawing = next
     markers.forEach((m) => m.remove())
     markers = []
     const draggable = Boolean(editing.onMovePoint)

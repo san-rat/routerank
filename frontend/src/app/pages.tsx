@@ -1,5 +1,6 @@
 import { Navigate, useParams } from 'react-router'
-import { provinceBySlug } from '../map/provinces'
+import { DEFAULT_PROVINCE, provinceBySlug } from '../map/provinces'
+import { ProvinceSummary } from '../rankings/MapRankings'
 import { DESKTOP, useMediaQuery } from './useMediaQuery'
 
 /** A page that arrives in a later phase */
@@ -15,12 +16,9 @@ export function Placeholder({ title, phase }: { title: string; phase: number }) 
 /** Map routes: the map itself lives in AppShell; on desktop the panel shows this */
 export function MapPage({ title, phase }: { title?: string; phase?: number }) {
   const desktop = useMediaQuery(DESKTOP)
+  const { province } = useParams()
   if (!desktop) return null
-  return title && phase ? <Placeholder title={title} phase={phase} /> : (
-    <main className="page">
-      <p>Rankings for this province arrive in Phase 5.</p>
-    </main>
-  )
+  return title && phase ? <Placeholder title={title} phase={phase} /> : <ProvinceSummary province={province ?? DEFAULT_PROVINCE} />
 }
 
 /** /map/:province — unknown provinces go to Western */

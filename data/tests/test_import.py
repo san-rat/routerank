@@ -2,10 +2,10 @@ from datetime import datetime, timezone
 
 import psycopg
 
-from routerank_import.__main__ import load
+from routerank_import.__main__ import load, write_enrich
 from routerank_import.checks import largest_component_share, run_checks
-from routerank_import.extract import (english_name, parse_oneway, parse_oneway_bus, places, road_class_of,
-                                      split_ways)
+from routerank_import.extract import (Place, english_name, extra_places, parse_oneway, parse_oneway_bus, places,
+                                      road_class_of, road_ref, split_ways)
 
 from .conftest import FIXTURE
 
@@ -37,8 +37,35 @@ def test_english_name():
 def test_fixture_has_place_names():
     found = places(str(FIXTURE))
     assert found
-    assert {p.kind for p in found} <= {"city", "town", "suburb", "village"}
+    assert {p.kind for p in found} <= {"city", "town", "suburb", "quarter", "neighbourhood", "village"}
+    assert {"quarter", "neighbourhood"} <= {p.kind for p in found}  # Colombo's smaller places
     assert all(p.name for p in found)
+
+
+def test_extra_places_fill_gaps_in_osm(tmp_path, capsys):
+    pettah = next(p for p in extra_places([]) if p.name == "Pettah")
+    assert pettah.osm_id < 0 and "Pitakotuwa" in pettah.aliases
+
+    # Once OSM has it, under its name or an alias, within 2 km, the row is left out with a note to drop it
+    mapped = Place(123, "suburb", "Pitakotuwa", 79.851, 6.937)
+    assert pettah not in extra_places([mapped])
+    assert "remove its row" in capsys.readouterr().out
+    elsewhere = Place(124, "village", "Pettah", 80.6, 7.3)  # same name, other side of the island
+    assert pettah in extra_places([elsewhere])
+
+    bad = tmp_path / "places-extra.csv"
+    bad.write_text("id,kind,name,lat,lon,aliases,source\n5,suburb,X,6.9,79.8,,\n", encoding="utf-8")
+    try:
+        extra_places([], bad)
+        raise AssertionError("accepted a positive ID")
+    except ValueError:
+        pass
+
+
+def test_road_ref():
+    assert road_ref({"ref": " A4 "}) == "A4"
+    assert road_ref({"ref": "A2;B84"}) == "A2;B84"
+    assert road_ref({}) is None
 
 
 def test_largest_component_share():
@@ -72,5 +99,49 @@ def test_colombo_fixture_imports_and_passes_checks(database_url):
         one_way = conn.execute("SELECT count(*) FROM road_segment WHERE import_run_id = %s AND oneway <> 0",
                                (run_id,)).fetchone()[0]
         assert one_way > 0  # central Colombo has one-way streets
+        osm = places(str(FIXTURE))
         named = conn.execute("SELECT count(*) FROM place WHERE import_run_id = %s", (run_id,)).fetchone()[0]
-        assert named == len(places(str(FIXTURE)))
+        assert named == len(osm) + len(extra_places(osm))
+        assert conn.execute("SELECT aliases FROM place WHERE import_run_id = %s AND name = 'Pettah'",
+                            (run_id,)).fetchone()[0] == ["Pitakotuwa", "Purakkottai"]
+        named = conn.execute("""SELECT count(*) FILTER (WHERE name IS NOT NULL), count(*) FILTER (WHERE ref IS NOT NULL)
+                                FROM road_segment WHERE import_run_id = %s""", (run_id,)).fetchone()
+        assert named[0] > 0 and named[1] > 0  # e.g. Galle Road, A2
+
+
+def test_enrich_adds_names_and_places_to_an_existing_run(database_url, tmp_path):
+    run_id = load(str(FIXTURE), "test://colombo-enrich", None, expected_provinces=1)  # the file's own date
+    with psycopg.connect(database_url) as conn:
+        expected = conn.execute("""SELECT count(*) FILTER (WHERE name IS NOT NULL OR ref IS NOT NULL)
+                                   FROM road_segment WHERE import_run_id = %s""", (run_id,)).fetchone()[0]
+        places_before = conn.execute("SELECT count(*) FROM place WHERE import_run_id = %s", (run_id,)).fetchone()[0]
+        # As production was loaded before Phase 5: no names, and only the four older place kinds
+        conn.execute("UPDATE road_segment SET name = NULL, ref = NULL WHERE import_run_id = %s", (run_id,))
+        conn.execute("DELETE FROM place WHERE import_run_id = %s AND (kind IN ('quarter', 'neighbourhood') OR osm_id < 0)",
+                     (run_id,))
+        ids_before = conn.execute("SELECT array_agg(id ORDER BY id) FROM road_segment WHERE import_run_id = %s",
+                                  (run_id,)).fetchone()[0]
+
+    sql = tmp_path / "enrich.sql"
+    write_enrich(str(FIXTURE), run_id, str(sql))
+    with psycopg.connect(database_url) as conn:
+        conn.execute(sql.read_text(encoding="utf-8"))
+        named, ids = conn.execute("""SELECT count(*) FILTER (WHERE name IS NOT NULL OR ref IS NOT NULL),
+                                            array_agg(id ORDER BY id)
+                                     FROM road_segment WHERE import_run_id = %s""", (run_id,)).fetchone()
+        assert named == expected
+        assert ids == ids_before  # updated in place: saved routes keep their segments
+        assert conn.execute("SELECT count(*) FROM place WHERE import_run_id = %s",
+                            (run_id,)).fetchone()[0] == places_before
+        assert conn.execute("SELECT aliases FROM place WHERE import_run_id = %s AND name = 'Pettah'",
+                            (run_id,)).fetchone()[0] == ["Pitakotuwa", "Purakkottai"]
+
+    # Refuses a run from another extract
+    with psycopg.connect(database_url) as conn:
+        conn.execute("UPDATE import_run SET extract_date = '2025-01-01' WHERE id = %s", (run_id,))
+        conn.commit()
+        try:
+            conn.execute(sql.read_text(encoding="utf-8"))
+            raise AssertionError("enrich ran against the wrong extract")
+        except psycopg.errors.RaiseException:
+            conn.rollback()

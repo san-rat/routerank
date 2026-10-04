@@ -9,5 +9,6 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY routerank_import routerank_import
+COPY places-extra.csv .
 
 ENTRYPOINT ["python", "-m", "routerank_import"]

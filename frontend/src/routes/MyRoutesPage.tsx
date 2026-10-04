@@ -1,5 +1,5 @@
 import { type DragEvent, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { api, ApiError, type Problem, type RouteView } from '../api/client'
 import clock from '../assets/icons/clock-12.svg'
 import dots from '../assets/icons/dots.svg'
@@ -127,12 +127,19 @@ function MyRoutesList({ initials }: { initials: string }) {
     navigate('/add/route')
   }
 
+  // The user's best stretch rank: their routes' busiest stretches are their best-ranked ones
+  const ranks = routes.map((r) => r.busiest?.rank).filter((r): r is number => typeof r === 'number')
+  const best = ranks.length > 0 ? Math.min(...ranks) : null
+
   return (
     <main className="page my-routes">
       <header className="my-routes-header">
         <div>
           <h1>My routes</h1>
-          <p>{routes.length} of 3 slots used{routes.length > 1 ? ' · tap ↑ ↓ to reorder' : ''}</p>
+          <p>
+            {routes.length} of 3 slots used{best ? ` · best stretch #${best}` : ''}
+            {routes.length > 1 ? ' · tap ↑ ↓ to reorder' : ''}
+          </p>
         </div>
         <span className="avatar large" aria-hidden="true">
           {initials}
@@ -191,6 +198,12 @@ function MyRoutesList({ initials }: { initials: string }) {
               <span className="slot-text">
                 <strong>{route.name}</strong>
                 <span>{formatKm(Math.max(route.lengthOutM, route.lengthBackM))}</span>
+                {route.busiest && (
+                  <Link className="busiest" to={`/s/${route.busiest.slug}`}>
+                    Busiest stretch: {route.busiest.name} · {route.busiest.points.toLocaleString('en-US')} pts
+                    {route.busiest.rank ? ` · #${route.busiest.rank}` : ''}
+                  </Link>
+                )}
                 <span className="chips">
                   <span className="points-chip">+{POINTS[s]} {POINTS[s] === 1 ? 'pt' : 'pts'}</span>
                   {counting ? (

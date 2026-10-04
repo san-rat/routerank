@@ -5,6 +5,10 @@ import locateIcon from '../assets/icons/locate.svg'
 import plus from '../assets/icons/plus.svg'
 import { ProvincePicker } from '../map/ProvincePicker'
 import { DEFAULT_PROVINCE, provinceBySlug } from '../map/provinces'
+import { useFocus } from '../rankings/focus'
+import { HeatOnMap } from '../rankings/HeatOnMap'
+import { useNoVotes } from '../rankings/data'
+import { Legend, NoVotes } from '../rankings/MapRankings'
 import { draftActions } from '../routes/draft'
 import { RouteOnMap } from '../routes/RouteOnMap'
 import { MapContext } from './mapContext'
@@ -18,6 +22,9 @@ const MapView = lazy(() => import('../map/MapView'))
 // Space taken by the floating chips and nav on mobile, so a fitted province stays visible
 const MOBILE_PADDING = { top: 70, bottom: 90, left: 24, right: 24 }
 const DESKTOP_PADDING = { top: 70, bottom: 40, left: 40, right: 40 }
+// A stretch on show: on phones its sheet covers the lower half (W04)
+const MOBILE_FOCUS_PADDING = { top: 120, bottom: 440, left: 40, right: 40 }
+const DESKTOP_FOCUS_PADDING = { top: 80, bottom: 60, left: 60, right: 60 }
 
 export function AppShell() {
   const desktop = useMediaQuery(DESKTOP)
@@ -26,7 +33,13 @@ export function AppShell() {
   // The first two add-route steps draw on the map, so it shows there on phones too
   const drawing = pathname === '/add' || pathname === '/add/route'
   const match = useMatch('/map/:province')
-  const province = provinceBySlug(match?.params.province ?? DEFAULT_PROVINCE) ?? provinceBySlug(DEFAULT_PROVINCE)!
+  const stretchPage = useMatch('/s/:stretch') !== null
+  const focus = useFocus()
+  // On a stretch's page the map shows its province (from the overall leaderboard, that can be another province)
+  const slug = match?.params.province ?? (stretchPage && focus ? focus.province : DEFAULT_PROVINCE)
+  const province = provinceBySlug(slug) ?? provinceBySlug(DEFAULT_PROVINCE)!
+  // W08 shows only its own card: no legend, and its button adds the first route
+  const noVotes = useNoVotes(province.slug) && !stretchPage
   const [map, setMap] = useState<MapLibreMap | null>(null)
   const [locating, setLocating] = useState(false)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -52,7 +65,9 @@ export function AppShell() {
   const mapLayer = (desktop || onMapPage || drawing) && (
     <div className="map-area">
       <Suspense fallback={<div className="map-loading" />}>
-        <MapView province={province} padding={desktop ? DESKTOP_PADDING : MOBILE_PADDING} onReady={setMap} />
+        <MapView province={province} padding={desktop ? DESKTOP_PADDING : MOBILE_PADDING} onReady={setMap}
+          focus={stretchPage ? focus?.bbox : undefined}
+          focusPadding={desktop ? DESKTOP_FOCUS_PADDING : MOBILE_FOCUS_PADDING} />
       </Suspense>
       {!drawing && (
         <div className="map-chips">
@@ -67,7 +82,10 @@ export function AppShell() {
           We only use your location to centre the map. It's never saved.
         </p>
       )}
-      {onMapPage && (
+      {onMapPage && !drawing && <HeatOnMap province={province.slug} />}
+      {onMapPage && (desktop || !stretchPage) && !noVotes && <Legend />}
+      {onMapPage && !stretchPage && <NoVotes province={province.slug} />}
+      {onMapPage && (desktop || !stretchPage) && !noVotes && (
         <Link className="add-route-button" to="/add" onClick={() => draftActions.reset()}>
           <img src={plus} alt="" width={20} height={20} /> Add route
         </Link>
@@ -94,7 +112,7 @@ export function AppShell() {
       <div className="app">
         {mapLayer}
         <Outlet />
-        {!pathname.startsWith('/add') && <WebNav />}
+        {!pathname.startsWith('/add') && !stretchPage && <WebNav />}
       </div>
     </MapContext>
   )

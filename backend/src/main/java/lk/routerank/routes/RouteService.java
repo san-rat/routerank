@@ -16,6 +16,8 @@ import lk.routerank.roads.LatLon;
 import lk.routerank.roads.RoutePlan;
 import lk.routerank.roads.RoutePlan.SnappedPoint;
 import lk.routerank.roads.Roads;
+import lk.routerank.scoring.Stretches;
+import lk.routerank.scoring.Stretches.Busiest;
 import lk.routerank.routes.RouteStore.Account;
 import lk.routerank.routes.RouteStore.NewRoute;
 import lk.routerank.routes.RouteStore.StoredRoute;
@@ -56,11 +58,14 @@ class RouteService {
 
 	private final Clock clock;
 
-	RouteService(Roads roads, RouteStore store, TransactionTemplate tx, Clock clock) {
+	private final Stretches stretches;
+
+	RouteService(Roads roads, RouteStore store, TransactionTemplate tx, Clock clock, Stretches stretches) {
 		this.roads = roads;
 		this.store = store;
 		this.tx = tx;
 		this.clock = clock;
+		this.stretches = stretches;
 	}
 
 	MyRoutes list(long userId) {
@@ -262,7 +267,9 @@ class RouteService {
 	}
 
 	private MyRoutes myRoutes(long userId, Account account, Instant now) {
-		List<RouteView> routes = store.active(userId).stream().map(RouteService::view).toList();
+		List<StoredRoute> active = store.active(userId);
+		Map<Long, Busiest> busiest = stretches.busiest(active.stream().map(StoredRoute::id).toList());
+		List<RouteView> routes = active.stream().map(r -> view(r, busiest.get(r.id()))).toList();
 		Map<Integer, Instant> starts = store.lockStarts(userId, now);
 		List<SlotView> slots = new ArrayList<>();
 		for (int slot = 1; slot <= Slots.COUNT; slot++) {
@@ -275,12 +282,12 @@ class RouteService {
 
 	private static RouteView view(List<StoredRoute> routes, long id) {
 		Map<Long, StoredRoute> byId = new HashMap<>(routes.stream().collect(Collectors.toMap(StoredRoute::id, Function.identity())));
-		return view(byId.get(id));
+		return view(byId.get(id), null); // just saved: its stretches are known after the next scoring run
 	}
 
-	private static RouteView view(StoredRoute r) {
+	private static RouteView view(StoredRoute r, Busiest busiest) {
 		return new RouteView(r.id(), r.slot(), r.name(), r.start(), r.end(), List.copyOf(r.waypoints()), Views.line(r.out()),
-				Views.line(r.back()), r.lengthOutM(), r.lengthBackM(), r.createdAt(), r.updatedAt());
+				Views.line(r.back()), r.lengthOutM(), r.lengthBackM(), r.createdAt(), r.updatedAt(), busiest);
 	}
 
 	private static ResponseStatusException signedOut() {
