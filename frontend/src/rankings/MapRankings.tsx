@@ -198,7 +198,9 @@ export function StretchPage() {
       await navigator.share({ title: `${d.name} on RouteRank`, url }).catch(() => undefined)
       return
     }
-    await navigator.clipboard?.writeText(url)
+    // Says "Link copied" only when it was
+    const copiedOk = await navigator.clipboard?.writeText(url).then(() => true, () => false)
+    if (!copiedOk) return
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }

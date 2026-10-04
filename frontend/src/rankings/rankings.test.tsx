@@ -136,6 +136,25 @@ describe('the rankings', () => {
     expect(getDraft().end).toEqual({ lon: 80.05, lat: 7.08 })
   })
 
+  it('shares a stretch with the share sheet, or copies its link', async () => {
+    const share = vi.fn(async () => undefined)
+    vi.stubGlobal('navigator', { ...navigator, share })
+    at('/s/kadawatha-nittambuwa', <StretchPage />, '/s/:stretch')
+    await userEvent.click(await screen.findByRole('button', { name: 'Share this stretch' }))
+    expect(share).toHaveBeenCalledWith({ title: 'Kadawatha → Nittambuwa on RouteRank', url: `${location.origin}/s/kadawatha-nittambuwa` })
+    expect(screen.queryByText('Link copied')).not.toBeInTheDocument()
+
+    // No share sheet: copies, and says so only when the copy worked
+    const writeText = vi.fn(async (): Promise<void> => Promise.reject(new Error('denied')))
+    vi.stubGlobal('navigator', { ...navigator, share: undefined, clipboard: { writeText } })
+    await userEvent.click(screen.getByRole('button', { name: 'Share this stretch' }))
+    expect(writeText).toHaveBeenCalled()
+    expect(screen.queryByText('Link copied')).not.toBeInTheDocument()
+    writeText.mockImplementation(async () => undefined)
+    await userEvent.click(screen.getByRole('button', { name: 'Share this stretch' }))
+    expect(await screen.findByText('Link copied')).toBeInTheDocument()
+  })
+
   it('says when a stretch link no longer has votes', async () => {
     at('/s/nowhere', <StretchPage />, '/s/:stretch')
     expect(await screen.findByRole('heading', { name: 'This stretch has no votes right now' })).toBeInTheDocument()

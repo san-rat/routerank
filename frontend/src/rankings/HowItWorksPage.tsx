@@ -7,7 +7,11 @@ import shield from '../assets/icons/shield.svg'
 import star from '../assets/icons/star.svg'
 
 const RULES = [
-  { icon: star, title: 'Your preference sets the points', text: '#1 adds 3 points to every stretch it covers, #2 adds 2, #3 adds 1.' },
+  {
+    icon: star,
+    title: 'Your preference sets the points',
+    text: '#1 adds 3 points to every stretch it covers more than half of, #2 adds 2, #3 adds 1. People are everyone behind those routes, counted once.',
+  },
   {
     icon: merge,
     title: 'Stretches are named simply',
