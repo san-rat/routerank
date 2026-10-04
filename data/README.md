@@ -1,14 +1,15 @@
 # Road data import
 
-Turns the OpenStreetMap extract for Sri Lanka into `road_segment` rows: the small pieces of main road that votes score. Rules are in the Architecture doc (Data model → Road segments); the table comes from the backend's Flyway migrations.
+Turns the OpenStreetMap extract for Sri Lanka into `road_segment` rows (the small pieces of main road that votes score) and `place` rows (the place names that name routes and power search). Rules are in the Architecture doc (Data model → Road segments); the table comes from the backend's Flyway migrations.
 
 ## What it does
 
-1. **Filter** (osmium): keep trunk, primary and secondary roads and their `_link` roads, plus admin boundaries. Expressways (`motorway`) are left out.
+1. **Filter** (osmium): keep trunk, primary and secondary roads and their `_link` roads, admin boundaries, and `place=city/town/suburb/village` points. Expressways (`motorway`) are left out.
 2. **Split ways** (pyosmium): cut each way at every node shared by two or more main-road ways. Each piece is keyed by (osm_way_id, from_node, to_node, part).
 3. **Provinces**: the nine `admin_level=4` boundaries with an `ISO3166-2` code starting `LK-`. Pieces are cut where they touch a border and take the province of their midpoint.
 4. **Length cap**: pieces over 1 km are cut into equal parts. Geometry is EPSG:4326; `length_m` uses `::geography`.
-5. **Checks**: the import fails and rolls back unless every segment has a province, class and length, none is over the cap, and the largest connected network holds at least 95% of main-road km. It prints km per road class and per province.
+5. **Places**: place points with an English name (`name:en`, or a `name` with no Sinhala or Tamil letters) go to `place`. There is no external geocoder.
+6. **Checks**: the import fails and rolls back unless every segment has a province, class and length, none is over the cap, the largest connected network holds at least 95% of main-road km, and some places loaded. It prints km per road class and per province, and places per kind.
 
 Each run is recorded in `import_run` with the extract's date.
 
@@ -29,6 +30,40 @@ docker compose --profile tools run --rm import load /work/main-roads.osm.pbf --s
 
 The `import` service applies the Flyway migrations first (the `migrate` service). On Git Bash for Windows, prefix the `docker compose` commands with `MSYS_NO_PATHCONV=1` so `/work/...` paths are not rewritten.
 
+## Routing graph
+
+The API routes with an embedded GraphHopper graph built from the **same filtered file** as the segments, never on the VM. GraphHopper keeps the file's extract date, and the API refuses to start unless it matches the newest `import_run`.
+
+```bash
+cd ../backend && ./gradlew buildGraph -Posm=../data/downloads/main-roads.osm.pbf -Pout=../data/downloads/graph-2026-10-01
+```
+```bash
+data/graph/upload.sh graph-2026-10-01
+```
+
+The graph is about 8 MB (2.8 MB packed). `upload.sh` puts it on R2 under `graphs/`; then set the name, URL and SHA-256 in `infra/azure/graph.env`, and the next API deploy downloads it to the VM.
+
+For local development, run the API with `ROUTERANK_ROUTING_GRAPH_LOCATION` pointing at the graph folder, against a database holding the same import.
+
+## Loading production
+
+The import never runs on the VM or straight into Azure. Import into a fresh local database, dump the road and place tables, and restore the dump over TLS:
+
+```bash
+docker compose exec db psql -U routerank -c "CREATE DATABASE routerank_export"
+```
+```bash
+docker compose run --rm --no-deps migrate -url=jdbc:postgresql://db:5432/routerank_export -user=routerank -password=routerank -locations=filesystem:/migrations migrate
+```
+```bash
+docker compose --profile tools run --rm --no-deps -e DATABASE_URL=postgresql://routerank:routerank@db:5432/routerank_export import load /work/main-roads.osm.pbf --source-url https://download.geofabrik.de/asia/sri-lanka-latest.osm.pbf --provinces 9
+```
+```bash
+docker compose exec db pg_dump -U routerank -d routerank_export -Fc --data-only -t import_run -t road_segment -t place -f /tmp/roads.dump
+```
+
+Copy it out (`docker compose cp db:/tmp/roads.dump ../data/downloads/roads-2026-10-01.dump`), open the Azure database firewall to your IP with a temporary rule, run `data/production/restore.sh roads-2026-10-01.dump <server>.postgres.database.azure.com <admin user>` (it asks for the password, applies the migrations, restores, and fixes the ID sequences), then delete the firewall rule. The script refuses to run when production already has an import: a re-import must also re-match stored routes onto the new segments (Phase 8).
+
 ## Spot checks
 
 Export one-way main roads in Colombo 1–7, Pettah and Kandy town to GeoJSON and compare them with reality (geojson.io or QGIS; each feature links to its OSM way):
@@ -41,7 +76,9 @@ Fix wrong tags upstream in OpenStreetMap, then re-import.
 
 ## Tests
 
-`fixtures/colombo.osm.pbf` is central Colombo plus the Western Province boundary (216 KB). The tests start PostGIS with Testcontainers (Docker needed), apply the migrations, import the fixture and run the checks.
+`fixtures/colombo.osm.pbf` is central Colombo plus the Western Province boundary (216 KB), with the extract date in its header. The tests start PostGIS with Testcontainers (Docker needed), apply the migrations, import the fixture and run the checks.
+
+The backend's routing tests use the same fixture: its graph is built on test startup, and its roads and places load from `backend/src/test/resources/db/testdata/V1000__colombo_roads.sql`. Regenerate that file after changing the import or the fixture with `.venv/Scripts/python -m tests.make_backend_fixture`.
 
 ```bash
 python -m venv .venv

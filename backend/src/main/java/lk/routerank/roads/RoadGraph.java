@@ -51,6 +51,8 @@ final class RoadGraph {
 
 		GraphHopper hopper = new GraphHopper();
 		hopper.init(config);
+		// No gh.lock file either, so the graph can be mounted read-only
+		hopper.setAllowWrites(!readOnly);
 		return hopper;
 	}
 

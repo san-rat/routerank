@@ -13,7 +13,7 @@ browser ──► routerank.pages.dev/api/* ──► Pages Function ──► h
 
 Use one region for everything: Central India or Southeast Asia, whichever your subscription allows.
 
-1. **PostgreSQL:** create an Azure Database for PostgreSQL flexible server: Burstable B1MS, PostgreSQL 16,
+1. **PostgreSQL:** create an Azure Database for PostgreSQL flexible server: Burstable B1MS, PostgreSQL 18,
    public access. In its server parameters, add `POSTGIS` to `azure.extensions` (Flyway's first migration
    runs `CREATE EXTENSION postgis`). Create a database named `routerank`.
 2. **VM:** create an Ubuntu 24.04 VM (B1s or B2ats v2) with SSH key sign-in. Allow inbound ports 22, 80
@@ -33,6 +33,10 @@ Use one region for everything: Central India or Southeast Asia, whichever your s
    ```
 
    Keep it private: `chmod 600 ~/routerank/.env`.
+
+   The deploy also copies `graph.env` (which routing graph to load) and downloads that graph to
+   `~/routerank/graphs`. Run compose by hand with both files:
+   `docker compose --env-file .env --env-file graph.env up -d`.
 5. **Deploy key:** make a key pair just for GitHub Actions (`ssh-keygen -t ed25519 -f routerank-deploy`),
    add the public half to `~/.ssh/authorized_keys` on the VM, then in the GitHub repository set:
    - secret `AZURE_VM_SSH_KEY`: the private key
@@ -47,8 +51,10 @@ Use one region for everything: Central India or Southeast Asia, whichever your s
 
 `.github/workflows/deploy-api.yml` runs on every push to main that changes `backend/` or this folder.
 It builds the image, pushes it to GitHub Container Registry as `latest` and the commit SHA, copies
-`compose.yml` and `Caddyfile` here to `~/routerank`, restarts the containers, and checks
+`compose.yml`, `Caddyfile` and `graph.env` here to `~/routerank`, downloads the routing graph named in
+`graph.env` if it isn't there yet (checking its SHA-256), restarts the containers, and checks
 `/actuator/health` (the one path that doesn't need the proxy secret). Flyway migrates the database
-when the API starts.
+when the API starts. The roads themselves are loaded separately (data/README.md, "Loading production"), and the
+API refuses to start if the graph and the newest `import_run` come from different extracts.
 
 To roll back, set the image in `compose.yml` to an earlier commit SHA and push.
