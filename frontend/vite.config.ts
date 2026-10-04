@@ -37,6 +37,26 @@ function localTiles(): Plugin {
   }
 }
 
+// Local only: serve data/downloads/rankings at /rankings, where the API's scoring job writes the rankings
+// when run with ROUTERANK_SCORING_PUBLISH_DIRECTORY (see the frontend README). In production they are on R2.
+function localRankings(): Plugin {
+  const dir = resolve(__dirname, '../data/downloads/rankings')
+
+  function serve(req: IncomingMessage, res: ServerResponse, next: () => void) {
+    const file = resolve(dir, decodeURIComponent((req.url ?? '').split('?')[0].replace(/^\//, '')))
+    if (!file.startsWith(dir) || !file.endsWith('.json') || !existsSync(file)) return next()
+    res.setHeader('Content-Type', 'application/json')
+    res.setHeader('Cache-Control', 'no-cache')
+    createReadStream(file).pipe(res)
+  }
+
+  return {
+    name: 'local-rankings',
+    configureServer: (server) => void server.middlewares.use('/rankings', serve),
+    configurePreviewServer: (server) => void server.middlewares.use('/rankings', serve),
+  }
+}
+
 // Production only: shorten the map's request chain (page → app JS → map JS → tiles).
 // - preconnect to the tile and glyph hosts so their TLS handshakes overlap the JS downloads;
 // - on pages that show a map (same rule as AppShell: always on desktop, map routes on mobile),
@@ -81,7 +101,7 @@ export default defineConfig(({ command, mode }) => {
     },
   }
   return {
-    plugins: [react(), localTiles(), fasterMap(loadEnv(mode, process.cwd()).VITE_TILES_URL)],
+    plugins: [react(), localTiles(), localRankings(), fasterMap(loadEnv(mode, process.cwd()).VITE_TILES_URL)],
     server: { proxy: apiProxy },
     preview: { proxy: apiProxy },
     test: {

@@ -16,9 +16,12 @@ interface Props {
   /** Space covered by panels, so fitted provinces stay visible */
   padding: { top: number; bottom: number; left: number; right: number }
   onReady?: (map: MapLibreMap) => void
+  /** A stretch to zoom to instead of the whole province, [west, south, east, north] */
+  focus?: [number, number, number, number]
+  focusPadding?: { top: number; bottom: number; left: number; right: number }
 }
 
-export default function MapView({ province, padding, onReady }: Props) {
+export default function MapView({ province, padding, onReady, focus, focusPadding }: Props) {
   const container = useRef<HTMLDivElement>(null)
   const map = useRef<MapLibreMap | null>(null)
 
@@ -57,11 +60,14 @@ export default function MapView({ province, padding, onReady }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const focusKey = focus?.join(',')
   useEffect(() => {
-    if (province && map.current) map.current.fitBounds(province.bbox, { padding, duration: 600 })
-    // Refit only when the province changes, not when the padding object is recreated
+    if (!map.current) return
+    if (focus) map.current.fitBounds(focus, { padding: focusPadding ?? padding, duration: 600, maxZoom: 15 })
+    else if (province) map.current.fitBounds(province.bbox, { padding, duration: 600 })
+    // Refit only when the province or the stretch changes, not when the padding object is recreated
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [province?.slug])
+  }, [province?.slug, focusKey])
 
   return <div ref={container} className="map" data-testid="map" />
 }

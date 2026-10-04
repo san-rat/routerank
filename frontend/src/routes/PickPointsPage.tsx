@@ -15,7 +15,14 @@ import { useRouteLayer } from './useRouteLayer'
 
 type Which = 'start' | 'end'
 
-const KINDS: Record<string, string> = { city: 'City', town: 'Town', suburb: 'Suburb', village: 'Village' }
+const KINDS: Record<string, string> = {
+  city: 'City',
+  town: 'Town',
+  suburb: 'Suburb',
+  quarter: 'Quarter',
+  neighbourhood: 'Neighbourhood',
+  village: 'Village',
+}
 
 /** /add — pick the start and end by tapping a main road or searching for a place (W15, W16) */
 export function PickPointsPage() {

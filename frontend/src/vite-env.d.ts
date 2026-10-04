@@ -5,6 +5,8 @@ interface ImportMetaEnv {
   readonly VITE_TILES_URL: string
   /** Google OAuth client ID for sign-in; public, set per environment */
   readonly VITE_GOOGLE_CLIENT_ID?: string
+  /** Where the published rankings are (the routerank-data bucket's public address); unset = no rankings yet */
+  readonly VITE_DATA_URL?: string
 }
 
 interface ImportMeta {

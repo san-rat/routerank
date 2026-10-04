@@ -49,6 +49,15 @@ localStorage.setItem('routerank.signedIn', '1')
 
 `/api/auth/dev-token` exists only in that test launcher (`backend/src/test`), never in the built API.
 
+### Rankings locally
+
+The map's heatmap, the stretch pages and the leaderboards read the files the scoring job publishes, never the
+API. In production they are on R2 (`VITE_DATA_URL`, the `routerank-data` bucket's public address). Locally, add
+`ROUTERANK_SCORING_PUBLISH_DIRECTORY=../data/downloads/rankings` and `ROUTERANK_ADMIN_EMAILS=dev-user@example.com`
+to the API command above: the job then writes the files there, and the dev server serves them at `/rankings`
+(`VITE_DATA_URL=/rankings` in `.env.development`). The job runs at :00 and :30; to run it now, sign in as
+`dev-user` and `POST /api/admin/scoring/run`. New accounts' votes count only after 24 hours, as in production.
+
 ## The map file
 
 `VITE_TILES_URL` is the full URL of the Sri Lanka PMTiles file. In development it is `/tiles/sri-lanka-YYYY-MM-DD.pmtiles` (`.env.development`), served from `../data/downloads` by the dev server; build the file first with `../data/basemap/build.sh`. In production it is the file's R2 address, set as the `VITE_TILES_URL` repository variable for the deploy workflow.

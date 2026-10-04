@@ -82,6 +82,16 @@ describe('My routes', () => {
     expect(screen.getByRole('button', { name: 'Move Pettah → Horana up' })).toBeDisabled()
   })
 
+  it('shows each route’s busiest stretch and the best stretch rank', async () => {
+    localStorage.setItem('routerank.signedIn', '1')
+    const busy = { ...mine, routes: [{ ...mine.routes[0], busiest: { slug: 'makumbura-horana', name: 'Makumbura → Horana', points: 716, people: 290, rank: 6 } }, mine.routes[1]] }
+    respond((url) => (url === '/api/me' ? me : busy))
+    page()
+    const link = await screen.findByRole('link', { name: /Busiest stretch: Makumbura → Horana · 716 pts · #6/ })
+    expect(link).toHaveAttribute('href', '/s/makumbura-horana')
+    expect(screen.getByText(/best stretch #6/)).toBeInTheDocument()
+  })
+
   it('moves a route down by saving the new order', async () => {
     localStorage.setItem('routerank.signedIn', '1')
     const fetch = respond((url, init) => (url === '/api/me' ? me : init?.method === 'PUT' ? mine : mine))
