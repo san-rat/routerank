@@ -44,18 +44,20 @@ class RouteStore {
 	/** The user's routes that are not removed, by slot. */
 	List<StoredRoute> active(long userId) {
 		List<StoredRoute> routes = jdbc.sql("""
-				SELECT id, slot, name, ST_Y(start_point) AS start_lat, ST_X(start_point) AS start_lon,
-				       ST_Y(end_point) AS end_lat, ST_X(end_point) AS end_lon,
-				       ST_AsText(geom_out) AS out_wkt, ST_AsText(geom_back) AS back_wkt,
-				       length_out_m, length_back_m, created_at, updated_at
-				FROM route WHERE user_id = :user AND removed_at IS NULL ORDER BY slot""")
+				SELECT r.id, r.slot, r.name, ST_Y(r.start_point) AS start_lat, ST_X(r.start_point) AS start_lon,
+				       ST_Y(r.end_point) AS end_lat, ST_X(r.end_point) AS end_lon,
+				       ST_AsText(r.geom_out) AS out_wkt, ST_AsText(r.geom_back) AS back_wkt,
+				       r.length_out_m, r.length_back_m, r.created_at, r.updated_at, r.bus_route_id, b.number AS bus_number
+				FROM route r LEFT JOIN bus_route b ON b.id = r.bus_route_id
+				WHERE r.user_id = :user AND r.removed_at IS NULL ORDER BY r.slot""")
 			.param("user", userId)
 			.query((rs, n) -> new StoredRoute(rs.getLong("id"), rs.getInt("slot"), rs.getString("name"),
 					new LatLon(rs.getDouble("start_lat"), rs.getDouble("start_lon")),
 					new LatLon(rs.getDouble("end_lat"), rs.getDouble("end_lon")), new ArrayList<>(),
 					parseLine(rs.getString("out_wkt")), parseLine(rs.getString("back_wkt")), rs.getDouble("length_out_m"),
 					rs.getDouble("length_back_m"), rs.getTimestamp("created_at").toInstant(),
-					rs.getTimestamp("updated_at").toInstant()))
+					rs.getTimestamp("updated_at").toInstant(), (Long) rs.getObject("bus_route_id"),
+					rs.getString("bus_number")))
 			.list();
 		if (!routes.isEmpty()) {
 			Map<Long, StoredRoute> byId = new HashMap<>();
@@ -114,9 +116,9 @@ class RouteStore {
 
 	long insert(long userId, int slot, NewRoute route, Instant now) {
 		long id = jdbc.sql("""
-				INSERT INTO route (user_id, slot, kind, name, start_point, end_point, geom_out, geom_back,
+				INSERT INTO route (user_id, slot, kind, bus_route_id, name, start_point, end_point, geom_out, geom_back,
 				                   length_out_m, length_back_m, created_at, updated_at)
-				VALUES (:user, :slot, 'new', :name, ST_SetSRID(ST_MakePoint(:startLon, :startLat), 4326),
+				VALUES (:user, :slot, :kind, :busRoute, :name, ST_SetSRID(ST_MakePoint(:startLon, :startLat), 4326),
 				        ST_SetSRID(ST_MakePoint(:endLon, :endLat), 4326), ST_GeomFromText(:out, 4326),
 				        ST_GeomFromText(:back, 4326), :lengthOut, :lengthBack, :now, :now)
 				RETURNING id""")
@@ -131,7 +133,8 @@ class RouteStore {
 
 	void update(long routeId, NewRoute route, Instant now) {
 		jdbc.sql("""
-				UPDATE route SET name = :name, start_point = ST_SetSRID(ST_MakePoint(:startLon, :startLat), 4326),
+				UPDATE route SET kind = :kind, bus_route_id = :busRoute, name = :name,
+				       start_point = ST_SetSRID(ST_MakePoint(:startLon, :startLat), 4326),
 				       end_point = ST_SetSRID(ST_MakePoint(:endLon, :endLat), 4326), geom_out = ST_GeomFromText(:out, 4326),
 				       geom_back = ST_GeomFromText(:back, 4326), length_out_m = :lengthOut, length_back_m = :lengthBack,
 				       updated_at = :now
@@ -165,6 +168,8 @@ class RouteStore {
 
 	private Map<String, Object> routeParams(NewRoute route, Instant now) {
 		Map<String, Object> params = new LinkedHashMap<>();
+		params.put("kind", route.busRouteId() == null ? "new" : "extension");
+		params.put("busRoute", route.busRouteId());
 		params.put("name", route.name());
 		params.put("startLat", route.start().lat());
 		params.put("startLon", route.start().lon());
@@ -190,11 +195,13 @@ class RouteStore {
 				.param("lon", p.lon())
 				.update();
 		}
+		// An extension's segments on its bus route don't score: only the new part does
 		jdbc.sql("""
 				INSERT INTO route_segment (route_id, segment_id, scores)
-				SELECT :id, s, true FROM unnest(:segments::bigint[]) AS s""")
+				SELECT :id, s, NOT (s = ANY(:busSegments::bigint[])) FROM unnest(:segments::bigint[]) AS s""")
 			.param("id", routeId)
 			.param("segments", route.segmentIds().toArray(Long[]::new))
+			.param("busSegments", route.busSegmentIds().toArray(Long[]::new))
 			.update();
 	}
 
@@ -225,14 +232,24 @@ class RouteStore {
 	record Overlap(long id, int slot, String name) {
 	}
 
+	/**
+	 * @param busRouteId for an extension, the bus route it extends; null for a new route
+	 * @param busNumber that bus route's number
+	 */
 	record StoredRoute(long id, int slot, String name, LatLon start, LatLon end, List<LatLon> waypoints,
 			List<LatLon> out, List<LatLon> back, double lengthOutM, double lengthBackM, Instant createdAt,
-			Instant updatedAt) {
+			Instant updatedAt, Long busRouteId, String busNumber) {
 	}
 
-	/** A route worked out on the server, ready to store. */
+	/**
+	 * A route worked out on the server, ready to store.
+	 *
+	 * @param busRouteId for an extension, the bus route it extends; null for a new route
+	 * @param busSegmentIds for an extension, the segments its bus runs on, which don't score; empty otherwise
+	 */
 	record NewRoute(String name, LatLon start, LatLon end, List<LatLon> waypoints, List<LatLon> out, List<LatLon> back,
-			double lengthOutM, double lengthBackM, Collection<Long> segmentIds) {
+			double lengthOutM, double lengthBackM, Collection<Long> segmentIds, Long busRouteId,
+			Collection<Long> busSegmentIds) {
 	}
 
 }

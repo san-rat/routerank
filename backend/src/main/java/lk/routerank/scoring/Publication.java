@@ -9,6 +9,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lk.routerank.scoring.Rankings.Stretch;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -23,6 +24,7 @@ import tools.jackson.databind.json.JsonMapper;
  * <li>{@code details/<province>-<hash>.json}: every stretch in the province by slug</li>
  * <li>{@code leaderboard/<overall|province>-<page>-<hash>.json}: ranked stretches, 20 a page</li>
  * <li>{@code slugs-<hash>.json}: every link slug to its stretch's own slug and province</li>
+ * <li>{@code buses-<hash>.json}: the active bus routes, each with its most-wanted extension</li>
  * <li>{@code manifest.json}: the above, the colour bands and when the run was</li>
  * </ul>
  */
@@ -66,16 +68,38 @@ final class Publication {
 	 * @param votes #1, #2 and #3 votes ("Where the points come from")
 	 * @param ends its two ends as {@code [lon, lat]} ("Vote for this stretch" starts a route between them)
 	 * @param bbox {@code [west, south, east, north]}
+	 * @param extendsBus the number of the bus route most of its points come from extensions of ("Extends 99")
 	 */
 	record Detail(String name, String road, String province, int points, int people, int[] votes, long lengthM,
-			Integer rankOverall, Integer rankProvince, double[][] ends, double[] bbox) {
+			Integer rankOverall, Integer rankProvince, double[][] ends, double[] bbox,
+			@JsonInclude(JsonInclude.Include.NON_NULL) String extendsBus) {
 	}
 
 	record Details(String province, Map<String, Detail> stretches) {
 	}
 
 	record Entry(int rank, String slug, String name, String province, int points, int people, long lengthM,
-			double[] bbox) {
+			double[] bbox, @JsonInclude(JsonInclude.Include.NON_NULL) String extendsBus) {
+	}
+
+	/**
+	 * A bus route on the map (W05).
+	 *
+	 * @param out its way from start to end, {@code [lon, lat]} pairs
+	 * @param back its way back
+	 * @param towns towns it passes, in order
+	 * @param wanted its most-wanted extension: the stretch with the most points from extensions of it, or null
+	 */
+	record Bus(String number, String name, String startName, String endName, double[] start, double[] end,
+			List<String> towns, long lengthOutM, long lengthBackM, double[][] out, double[][] back, double[] bbox,
+			Wanted wanted) {
+	}
+
+	/** A bus route's most-wanted extension, as its sheet shows it ("Busiest stretch #6 in Western Province"). */
+	record Wanted(String slug, String name, String province, int points, Integer rankProvince) {
+	}
+
+	record Buses(List<Bus> routes) {
 	}
 
 	record Page(int page, List<Entry> entries) {
@@ -97,17 +121,23 @@ final class Publication {
 	/**
 	 * @param generatedAt when the run read the votes; the site shows it as "Updated …"
 	 * @param bands points thresholds between the heatmap's five colours, ascending (fewer when scores are few)
+	 * @param buses the bus routes file
 	 */
 	record Manifest(int version, Instant generatedAt, int pageSize, List<Integer> bands, Overall overall,
-			Map<String, ProvinceEntry> provinces, String slugs) {
+			Map<String, ProvinceEntry> provinces, String slugs, String buses) {
 	}
 
 	static String provinceSlug(String province) {
 		return province.toLowerCase(Locale.ROOT).replace(' ', '-');
 	}
 
+	/**
+	 * @param buses the active bus routes, without their most-wanted extensions (filled in here)
+	 * @param busNumbers every bus route's number by ID, retired ones too (their extensions still count)
+	 */
 	static Publication build(List<Stretch> stretches, Map<String, String> slugs, List<String> provinces,
-			Map<String, Integer> people, Instant generatedAt, JsonMapper json) {
+			Map<String, Integer> people, List<BusLine> buses, Map<Long, String> busNumbers, Instant generatedAt,
+			JsonMapper json) {
 		Map<String, byte[]> files = new LinkedHashMap<>();
 		Map<String, ProvinceEntry> provinceEntries = new TreeMap<>();
 
@@ -115,7 +145,7 @@ final class Publication {
 			.filter(Stretch::ranked)
 			.sorted(Comparator.comparing(Stretch::rankOverall))
 			.toList();
-		List<String> overallPages = pages("overall", ranked, true, files, json);
+		List<String> overallPages = pages("overall", ranked, true, busNumbers, files, json);
 
 		Map<String, String> slugProvince = new LinkedHashMap<>();
 		for (String province : provinces) {
@@ -136,7 +166,8 @@ final class Publication {
 			here.stream()
 				.sorted(Comparator.comparing(Stretch::slug))
 				.forEach(s -> details.put(s.slug(), new Detail(s.name(), s.road(), province, s.points(), s.people(),
-						s.votes(), Math.round(s.lengthM()), s.rankOverall(), s.rankProvince(), s.ends(), bbox(s))));
+						s.votes(), Math.round(s.lengthM()), s.rankOverall(), s.rankProvince(), s.ends(), bbox(s),
+						number(s, busNumbers))));
 			String heat = put(files, "heat/" + slug, json.writeValueAsBytes(new FeatureCollection("FeatureCollection",
 					features)));
 			String detailsKey = put(files, "details/" + slug, json.writeValueAsBytes(new Details(province, details)));
@@ -145,7 +176,8 @@ final class Publication {
 				.sorted(Comparator.comparing(Stretch::rankProvince))
 				.toList();
 			provinceEntries.put(slug, new ProvinceEntry(province, here.size(), rankedHere.size(),
-					people.getOrDefault(province, 0), heat, detailsKey, pages(slug, rankedHere, false, files, json)));
+					people.getOrDefault(province, 0), heat, detailsKey,
+					pages(slug, rankedHere, false, busNumbers, files, json)));
 		}
 
 		Map<String, List<String>> slugIndex = new TreeMap<>();
@@ -157,19 +189,32 @@ final class Publication {
 		});
 		String slugsKey = put(files, "slugs", json.writeValueAsBytes(slugIndex));
 
+		List<Bus> busFile = buses.stream().map(b -> {
+			Wanted wanted = stretches.stream()
+				.filter(s -> Long.valueOf(b.id()).equals(s.extendsBus()))
+				.max(Comparator.comparingInt(Stretch::points).thenComparing(Stretch::slug, Comparator.reverseOrder()))
+				.map(s -> new Wanted(s.slug(), s.name(), provinceSlug(s.province()), s.points(), s.rankProvince()))
+				.orElse(null);
+			return new Bus(b.number(), b.startName() + " → " + b.endName(), b.startName(), b.endName(), b.start(), b.end(),
+					b.towns(), Math.round(b.lengthOutM()), Math.round(b.lengthBackM()), b.out(), b.back(), bbox(b.out(), b.back()),
+					wanted);
+		}).toList();
+		String busesKey = put(files, "buses", json.writeValueAsBytes(new Buses(busFile)));
+
 		Manifest m = new Manifest(1, generatedAt, PAGE_SIZE, bands(stretches), new Overall(ranked.size(), overallPages),
-				provinceEntries, slugsKey);
+				provinceEntries, slugsKey, busesKey);
 		return new Publication(files, json.writeValueAsBytes(m));
 	}
 
-	private static List<String> pages(String name, List<Stretch> ranked, boolean overall, Map<String, byte[]> files,
-			JsonMapper json) {
+	private static List<String> pages(String name, List<Stretch> ranked, boolean overall, Map<Long, String> busNumbers,
+			Map<String, byte[]> files, JsonMapper json) {
 		List<String> keys = new ArrayList<>();
 		for (int from = 0, page = 1; from < ranked.size(); from += PAGE_SIZE, page++) {
 			List<Entry> entries = ranked.subList(from, Math.min(from + PAGE_SIZE, ranked.size()))
 				.stream()
 				.map(s -> new Entry(overall ? s.rankOverall() : s.rankProvince(), s.slug(), s.name(),
-						provinceSlug(s.province()), s.points(), s.people(), Math.round(s.lengthM()), bbox(s)))
+						provinceSlug(s.province()), s.points(), s.people(), Math.round(s.lengthM()), bbox(s),
+						number(s, busNumbers)))
 				.toList();
 			keys.add(put(files, "leaderboard/" + name + "-" + page, json.writeValueAsBytes(new Page(page, entries))));
 		}
@@ -192,10 +237,18 @@ final class Publication {
 		return bands;
 	}
 
+	private static String number(Stretch s, Map<Long, String> busNumbers) {
+		return s.extendsBus() == null ? null : busNumbers.get(s.extendsBus());
+	}
+
 	private static double[] bbox(Stretch s) {
+		return bbox(s.segments().stream().map(ScoredSegment::line).toArray(double[][][]::new));
+	}
+
+	private static double[] bbox(double[][]... lines) {
 		double west = Double.MAX_VALUE, south = Double.MAX_VALUE, east = -Double.MAX_VALUE, north = -Double.MAX_VALUE;
-		for (ScoredSegment segment : s.segments()) {
-			for (double[] p : segment.line()) {
+		for (double[][] line : lines) {
+			for (double[] p : line) {
 				west = Math.min(west, p[0]);
 				east = Math.max(east, p[0]);
 				south = Math.min(south, p[1]);
@@ -203,6 +256,15 @@ final class Publication {
 			}
 		}
 		return new double[] { west, south, east, north };
+	}
+
+	/**
+	 * An active bus route as the scoring job reads it.
+	 *
+	 * @param start {@code [lon, lat]}
+	 */
+	record BusLine(long id, String number, String startName, String endName, double[] start, double[] end,
+			List<String> towns, double lengthOutM, double lengthBackM, double[][] out, double[][] back) {
 	}
 
 	private static String put(Map<String, byte[]> files, String name, byte[] body) {

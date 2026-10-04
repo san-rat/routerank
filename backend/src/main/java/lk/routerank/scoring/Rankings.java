@@ -37,10 +37,11 @@ final class Rankings {
 	 * @param ends its two ends as {@code [lon, lat]}, the one nearer Colombo first
 	 * @param rankOverall null when not on the leaderboards
 	 * @param rankProvince null when not on the leaderboards
+	 * @param extendsBus the bus route most of its points come from extensions of ("Extends 99"), or null
 	 */
 	record Stretch(String slug, String name, String road, String province, List<ScoredSegment> segments, double lengthM,
 			int points, int people, int[] votes, double[][] ends, boolean linkOnly, Integer rankOverall,
-			Integer rankProvince) {
+			Integer rankProvince, Long extendsBus) {
 
 		boolean ranked() {
 			return rankOverall != null;
@@ -118,7 +119,7 @@ final class Rankings {
 			}
 			Group g = n.group();
 			unranked.add(new Stretch(own, n.name(), n.road(), g.province(), g.segments(), g.lengthM(), g.points(),
-					g.people(), g.votes(), n.ends(), g.linkOnly(), null, null));
+					g.people(), g.votes(), n.ends(), g.linkOnly(), null, null, g.extendsBus()));
 		}
 
 		List<Stretch> eligible = unranked.stream().filter(Rankings::eligible).sorted(ORDER).toList();
@@ -128,7 +129,7 @@ final class Rankings {
 			Stretch s = eligible.get(i);
 			int inProvince = provinceRanks.merge(s.province(), 1, Integer::sum);
 			stretches.add(new Stretch(s.slug(), s.name(), s.road(), s.province(), s.segments(), s.lengthM(), s.points(),
-					s.people(), s.votes(), s.ends(), s.linkOnly(), i + 1, inProvince));
+					s.people(), s.votes(), s.ends(), s.linkOnly(), i + 1, inProvince, s.extendsBus()));
 		}
 		unranked.stream().filter(s -> !eligible(s)).sorted(ORDER).forEach(stretches::add);
 		return new Result(List.copyOf(stretches), List.copyOf(newLinks), slugs);

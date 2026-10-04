@@ -68,7 +68,7 @@ class RoutesApiTests {
 	}
 
 	String body(LatLon start, LatLon end, List<LatLon> waypoints, Integer slot) {
-		return json.writeValueAsString(new RouteInput(start, end, waypoints, slot, null));
+		return json.writeValueAsString(new RouteInput(start, end, waypoints, slot, null, null, "pass", null, null));
 	}
 
 	LatLon snapped(double lat, double lon) {

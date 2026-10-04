@@ -36,6 +36,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/bus-routes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["redraw"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/routes": {
         parameters: {
             query?: never;
@@ -100,6 +116,166 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/routes/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["restoreRoute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/routes/{id}/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["removeRoute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/clusters/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["removeCluster"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/clusters/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["releaseCluster"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/bus-routes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_1"];
+        put?: never;
+        post: operations["add"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/bus-routes/{id}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["retire"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/bus-routes/draw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["draw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/accounts/{id}/unban": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["unban"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/accounts/{id}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["releaseAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/accounts/{id}/ban": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ban"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/places": {
         parameters: {
             query?: never;
@@ -148,6 +324,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["session"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["queue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/held": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["held"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["auditLog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["findAccounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/accounts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["account"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -166,6 +438,16 @@ export interface components {
             slot?: number;
             /** Format: int64 */
             routeId?: number;
+            /** Format: int64 */
+            extend?: number;
+            turnstile?: string;
+            device?: string;
+            website?: string;
+        };
+        BusRef: {
+            /** Format: int64 */
+            id: number;
+            number: string;
         };
         Busiest: {
             slug: string;
@@ -197,6 +479,7 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             busiest?: components["schemas"]["Busiest"];
+            extendsBus?: components["schemas"]["BusRef"];
         };
         Order: {
             routes: components["schemas"]["SlotAssignment"][];
@@ -221,6 +504,34 @@ export interface components {
             /** Format: date-time */
             graceUntil?: string;
         };
+        BusRouteInput: {
+            /** Format: int64 */
+            id?: number;
+            number?: string;
+            startName?: string;
+            endName?: string;
+            start: components["schemas"]["LatLon"];
+            end: components["schemas"]["LatLon"];
+            waypoints: components["schemas"]["LatLon"][];
+            reason?: string;
+        };
+        BusCheck: {
+            /** Format: int64 */
+            busRouteId: number;
+            number: string;
+            busName: string;
+            /** Format: double */
+            busLengthM: number;
+            /** Format: double */
+            newLengthM: number;
+            /** Format: double */
+            totalM: number;
+            /** Format: double */
+            limitM: number;
+            name: string;
+            newEnd: string;
+            problems: components["schemas"]["Problem"][];
+        };
         Preview: {
             points: components["schemas"]["LatLon"][];
             out: number[][];
@@ -233,10 +544,11 @@ export interface components {
             lengthBackM: number;
             name: string;
             problems: components["schemas"]["Problem"][];
+            bus: components["schemas"]["BusCheck"];
         };
         Problem: {
             /** @enum {string} */
-            code: "SIDE_ROAD" | "NO_ROAD_NEARBY" | "NO_ROUTE" | "NO_WAY_BACK" | "TOO_LONG" | "OVERLAP" | "SLOT_LOCKED" | "SLOTS_FULL";
+            code: "SIDE_ROAD" | "NO_ROAD_NEARBY" | "NO_ROUTE" | "NO_WAY_BACK" | "TOO_LONG" | "OVERLAP" | "SLOT_LOCKED" | "SLOTS_FULL" | "NOT_AN_EXTENSION" | "EXTENSION_TOO_LONG";
             point?: string;
             nearest?: components["schemas"]["LatLon"];
             /** Format: double */
@@ -253,6 +565,8 @@ export interface components {
         };
         GoogleSignIn: {
             credential: string;
+            turnstile?: string;
+            device?: string;
         };
         Me: {
             /** Format: int64 */
@@ -262,6 +576,9 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             liveAt: string;
+        };
+        Reason: {
+            reason: string;
         };
         Run: {
             /** Format: date-time */
@@ -279,6 +596,31 @@ export interface components {
             published: boolean;
             note: string;
         };
+        ClusterAction: {
+            cluster: string;
+            reason: string;
+        };
+        Resolved: {
+            users: number[];
+            removedRoutes: number[];
+        };
+        Created: {
+            /** Format: int64 */
+            id: number;
+        };
+        DrawingView: {
+            points: components["schemas"]["LatLon"][];
+            out: number[][];
+            back: number[][];
+            /** Format: double */
+            lengthOutM: number;
+            /** Format: double */
+            lengthBackM: number;
+            startName: string;
+            endName: string;
+            towns: string[];
+            problems: string[];
+        };
         Place: {
             name: string;
             kind: string;
@@ -289,6 +631,114 @@ export interface components {
         };
         Nonce: {
             nonce: string;
+        };
+        Session: {
+            /** Format: int64 */
+            adminId: number;
+        };
+        AccountView: {
+            /** Format: int64 */
+            id: number;
+            email: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            liveAt: string;
+            /** Format: date-time */
+            heldAt: string;
+            /** Format: date-time */
+            bannedAt: string;
+            /** Format: double */
+            trustScore: number;
+            reasons: string[];
+            routes: components["schemas"]["RouteSummary"][];
+        };
+        ClusterView: {
+            key: string;
+            reason: string;
+            /** Format: date-time */
+            flaggedAt: string;
+            /** Format: double */
+            score: number;
+            accounts: components["schemas"]["AccountView"][];
+        };
+        RouteSummary: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            userId: number;
+            /** Format: int32 */
+            slot: number;
+            name: string;
+            kind: string;
+            busNumber: string;
+            /** Format: double */
+            lengthM: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            removedAt: string;
+        };
+        BusRouteView: {
+            /** Format: int64 */
+            id: number;
+            number: string;
+            startName: string;
+            endName: string;
+            start: components["schemas"]["LatLon"];
+            end: components["schemas"]["LatLon"];
+            waypoints: components["schemas"]["LatLon"][];
+            out: number[][];
+            back: number[][];
+            /** Format: double */
+            lengthOutM: number;
+            /** Format: double */
+            lengthBackM: number;
+            towns: string[];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            retiredAt: string;
+            /** Format: int32 */
+            extensions: number;
+        };
+        Entry: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            actorId: number;
+            actorEmail: string;
+            action: string;
+            target: string;
+            before: string;
+            after: string;
+            reason: string;
+            /** Format: date-time */
+            at: string;
+        };
+        AccountRow: {
+            /** Format: int64 */
+            id: number;
+            email: string;
+            role: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            liveAt: string;
+            /** Format: date-time */
+            heldAt: string;
+            /** Format: date-time */
+            bannedAt: string;
+            /** Format: double */
+            trustScore: number;
+        };
+        AccountDetail: {
+            account: components["schemas"]["AccountRow"];
+            routes: components["schemas"]["RouteSummary"][];
         };
     };
     responses: never;
@@ -366,6 +816,30 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MyRoutes"];
                 };
+            };
+        };
+    };
+    redraw: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BusRouteInput"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -475,7 +949,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Reason"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -485,6 +963,266 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Run"];
                 };
+            };
+        };
+    };
+    restoreRoute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Reason"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    removeRoute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Reason"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    removeCluster: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClusterAction"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Resolved"];
+                };
+            };
+        };
+    };
+    releaseCluster: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClusterAction"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Resolved"];
+                };
+            };
+        };
+    };
+    list_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusRouteView"][];
+                };
+            };
+        };
+    };
+    add: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BusRouteInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Created"];
+                };
+            };
+        };
+    };
+    retire: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Reason"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    draw: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BusRouteInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DrawingView"];
+                };
+            };
+        };
+    };
+    unban: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Reason"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    releaseAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Reason"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ban: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Reason"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -554,6 +1292,132 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    session: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+        };
+    };
+    queue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClusterView"][];
+                };
+            };
+        };
+    };
+    held: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountView"][];
+                };
+            };
+        };
+    };
+    auditLog: {
+        parameters: {
+            query?: {
+                before?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Entry"][];
+                };
+            };
+        };
+    };
+    findAccounts: {
+        parameters: {
+            query: {
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRow"][];
+                };
+            };
+        };
+    };
+    account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDetail"];
+                };
             };
         };
     };

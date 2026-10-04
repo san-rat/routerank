@@ -44,7 +44,7 @@ import tools.jackson.databind.json.JsonMapper;
  * The scoring job on the Colombo fixture: routes saved through the API, scored, ranked and "published" to an
  * in-memory R2.
  */
-@SpringBootTest(properties = "routerank.admin.emails=admin@example.com")
+@SpringBootTest
 @AutoConfigureMockMvc
 @Import({ TestcontainersConfiguration.class, ScoringJobTests.MemoryStore.class })
 class ScoringJobTests {
@@ -139,7 +139,7 @@ class ScoringJobTests {
 	/** Kollupitiya → Milagiriya down Galle Road (about 3 km), back up Duplication Road where it's one-way. */
 	void vote(RequestPostProcessor voter, int slot) throws Exception {
 		String body = json.writeValueAsString(Map.of("start", snapped(6.9147, 79.8488), "end", snapped(6.8890, 79.8553),
-				"waypoints", List.of(), "slot", slot));
+				"waypoints", List.of(), "slot", slot, "turnstile", "pass"));
 		mvc.perform(proxied(post("/api/routes")).with(voter).with(csrf()).contentType(MediaType.APPLICATION_JSON)
 			.content(body)).andExpect(status().isCreated());
 	}
@@ -244,13 +244,13 @@ class ScoringJobTests {
 
 	@Test
 	void onlyAdminsCanRunItNow() throws Exception {
-		RequestPostProcessor admin = voter(true, "Admin@Example.com"); // in routerank.admin.emails, any case
+		// The admin's own run (role and fresh sign-in) is in AdminTests
 		RequestPostProcessor someone = voter(true);
-		mvc.perform(proxied(post("/api/admin/scoring/run")).with(someone).with(csrf())).andExpect(status().isForbidden());
-		mvc.perform(proxied(post("/api/admin/scoring/run")).with(admin).with(csrf()))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.published").value(true));
-		mvc.perform(proxied(post("/api/admin/scoring/run")).with(csrf())).andExpect(status().isUnauthorized());
+		String reason = json.writeValueAsString(Map.of("reason", "Check the new bus routes"));
+		mvc.perform(proxied(post("/api/admin/scoring/run")).with(someone).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON).content(reason)).andExpect(status().isForbidden());
+		mvc.perform(proxied(post("/api/admin/scoring/run")).with(csrf())
+			.contentType(MediaType.APPLICATION_JSON).content(reason)).andExpect(status().isUnauthorized());
 	}
 
 }

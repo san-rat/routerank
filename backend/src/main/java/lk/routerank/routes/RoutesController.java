@@ -6,12 +6,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lk.routerank.auth.SignedInUser;
+import lk.routerank.fraud.Devices;
+import lk.routerank.fraud.Holds;
+import lk.routerank.fraud.SaveLimits;
+import lk.routerank.fraud.Turnstile;
 import lk.routerank.routes.Views.MyRoutes;
 import lk.routerank.routes.Views.Preview;
 import lk.routerank.routes.Views.Refused;
@@ -43,8 +48,21 @@ class RoutesController {
 
 	private final RateLimiter changes;
 
-	RoutesController(RouteService routes, Clock clock) {
+	private final Turnstile turnstile;
+
+	private final Devices devices;
+
+	private final SaveLimits saveLimits;
+
+	private final Holds holds;
+
+	RoutesController(RouteService routes, Clock clock, Turnstile turnstile, Devices devices, SaveLimits saveLimits,
+			Holds holds) {
 		this.routes = routes;
+		this.turnstile = turnstile;
+		this.devices = devices;
+		this.saveLimits = saveLimits;
+		this.holds = holds;
 		this.previews = new RateLimiter(60, Duration.ofMinutes(1), clock);
 		this.changes = new RateLimiter(30, Duration.ofMinutes(10), clock);
 	}
@@ -64,17 +82,46 @@ class RoutesController {
 	/** Saves a new route in a slot, pushing the routes in the way down. 422 lists the rules it breaks. */
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	RouteView create(@AuthenticationPrincipal SignedInUser user, @Valid @RequestBody RouteInput input) {
+	RouteView create(@AuthenticationPrincipal SignedInUser user, @Valid @RequestBody RouteInput input,
+			HttpServletRequest request) {
 		changes.check(user.id());
+		if (honeypot(user, input)) {
+			return routes.unsaved(input);
+		}
+		checkSave(user, input, request);
 		return routes.create(user.id(), input);
 	}
 
 	/** Replaces a route's points (and moves it, if {@code slot} differs). */
 	@PutMapping("/{id}")
 	RouteView update(@AuthenticationPrincipal SignedInUser user, @PathVariable long id,
-			@Valid @RequestBody RouteInput input) {
+			@Valid @RequestBody RouteInput input, HttpServletRequest request) {
 		changes.check(user.id());
+		if (honeypot(user, input)) {
+			return routes.unsaved(input);
+		}
+		checkSave(user, input, request);
 		return routes.update(user.id(), id, input);
+	}
+
+	/** Only a bot fills in the hidden field: its account is flagged and held, and nothing is saved. */
+	private boolean honeypot(SignedInUser user, RouteInput input) {
+		if (input.website() == null || input.website().isBlank()) {
+			return false;
+		}
+		holds.honeypot(user.id());
+		return true;
+	}
+
+	/** Turnstile, then the device signal and the per-device and per-IP limits (new and edited routes only). */
+	private void checkSave(SignedInUser user, RouteInput input, HttpServletRequest request) {
+		String ip = request.getRemoteAddr();
+		turnstile.check(input.turnstile(), Turnstile.SAVE, ip);
+		byte[] device = devices.record(user.id(), input.device()).orElse(null);
+		saveLimits.check(device, ip);
+		if (device != null) {
+			holds.deviceSeen(device);
+		}
 	}
 
 	/** Puts every route in a new slot. */

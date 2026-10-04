@@ -156,7 +156,7 @@ class SignInTests {
 	}
 
 	private String signInBody(String token) {
-		return json.writeValueAsString(Map.of("credential", token));
+		return json.writeValueAsString(Map.of("credential", token, "turnstile", "pass"));
 	}
 
 	private URI uri(String path) {

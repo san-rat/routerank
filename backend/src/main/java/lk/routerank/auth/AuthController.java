@@ -1,6 +1,7 @@
 package lk.routerank.auth;
 
 import java.security.SecureRandom;
+import java.time.Clock;
 import java.util.Base64;
 import java.util.List;
 
@@ -9,9 +10,13 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lk.routerank.auth.Accounts.Account;
 import lk.routerank.auth.GoogleIdTokens.GoogleAccount;
 import lk.routerank.auth.GoogleIdTokens.InvalidGoogleTokenException;
+import lk.routerank.fraud.Devices;
+import lk.routerank.fraud.Holds;
+import lk.routerank.fraud.Turnstile;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContext;
@@ -28,7 +33,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Sign-in with Google Identity Services in callback mode: the page asks for a nonce, passes it to Google, and
- * posts the ID token it gets back. Sign-out is {@code POST /api/auth/logout} (Spring Security's logout).
+ * posts the ID token it gets back, with a Turnstile token and the device signal. Sign-out is
+ * {@code POST /api/auth/logout} (Spring Security's logout).
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -44,10 +50,23 @@ class AuthController {
 
 	private final SecurityContextRepository contexts;
 
-	AuthController(GoogleIdTokens googleIdTokens, Accounts accounts, SecurityContextRepository contexts) {
+	private final Turnstile turnstile;
+
+	private final Devices devices;
+
+	private final Holds holds;
+
+	private final Clock clock;
+
+	AuthController(GoogleIdTokens googleIdTokens, Accounts accounts, SecurityContextRepository contexts,
+			Turnstile turnstile, Devices devices, Holds holds, Clock clock) {
 		this.googleIdTokens = googleIdTokens;
 		this.accounts = accounts;
 		this.contexts = contexts;
+		this.turnstile = turnstile;
+		this.devices = devices;
+		this.holds = holds;
+		this.clock = clock;
 	}
 
 	/** A one-time nonce for the next Google sign-in, kept in this browser's session. */
@@ -68,11 +87,13 @@ class AuthController {
 		if (session != null) {
 			session.removeAttribute(NONCE); // one use only
 		}
+		turnstile.check(body.turnstile(), Turnstile.SIGN_IN, request.getRemoteAddr());
 		GoogleAccount google = googleIdTokens.verify(body.credential(), expected);
 		Account account = accounts.signIn(google.sub(), google.email());
 		if (account.banned()) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "account banned");
 		}
+		devices.record(account.id(), body.device()).ifPresent(holds::deviceSeen);
 
 		request.changeSessionId(); // no session fixation
 		SecurityContext context = SecurityContextHolder.createEmptyContext();
@@ -80,6 +101,7 @@ class AuthController {
 				new SignedInUser(account.id()), null, List.of()));
 		SecurityContextHolder.setContext(context);
 		contexts.saveContext(context, request, response);
+		request.getSession().setAttribute(Admins.SIGNED_IN_AT, clock.instant()); // admin pages need a fresh sign-in
 		return Me.of(account);
 	}
 
@@ -91,7 +113,11 @@ class AuthController {
 	record Nonce(String nonce) {
 	}
 
-	record GoogleSignIn(@NotBlank String credential) {
+	/**
+	 * @param turnstile the Turnstile token for the "signin" action
+	 * @param device FingerprintJS's visitorId; only an HMAC of it is stored
+	 */
+	record GoogleSignIn(@NotBlank String credential, @Size(max = 2048) String turnstile, @Size(max = 64) String device) {
 	}
 
 }

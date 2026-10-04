@@ -128,7 +128,8 @@ public class ScoringJob {
 		}
 	}
 
-	private record Scored(int segments, Result result, List<String> provinces, Map<String, Integer> people) {
+	private record Scored(int segments, Result result, List<String> provinces, Map<String, Integer> people,
+			List<Publication.BusLine> buses, Map<Long, String> busNumbers) {
 	}
 
 	private Run run() {
@@ -143,7 +144,7 @@ public class ScoringJob {
 			return new Run(now, scored.segments(), stretches.size(), ranked, 0, 0, false, "publishing is off");
 		}
 		Publication publication = Publication.build(stretches, scored.result().slugs(), scored.provinces(),
-				scored.people(), now, json);
+				scored.people(), scored.buses(), scored.busNumbers(), now, json);
 		return publish(publication, now, scored.segments(), stretches.size(), ranked);
 	}
 
@@ -183,7 +184,8 @@ public class ScoringJob {
 
 		Result result = Rankings.rank(named, store.links());
 		store.save(segments, result.stretches(), result.newLinks(), now);
-		return new Scored(segments.size(), result, store.provinces(run), store.peopleByProvince(run, now));
+		return new Scored(segments.size(), result, store.provinces(run), store.peopleByProvince(run, now),
+				store.busLines(), store.busNumbers());
 	}
 
 	private Run publish(Publication publication, Instant now, int segments, int stretches, int ranked) {

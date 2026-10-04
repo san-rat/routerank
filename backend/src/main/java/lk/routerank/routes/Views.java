@@ -51,21 +51,47 @@ final class Views {
 	 * @param backLeaves stretches where the way back leaves the way there (drawn dashed)
 	 * @param backVia roads the way back uses there ("Way back uses Duplication Road")
 	 * @param name the auto-name ("Pettah → Horana"); empty when there is no route
+	 * @param problems what would block saving it as a new route
+	 * @param bus the Bus check (W18): the bus route it would extend; absent when it doesn't extend one
 	 */
 	record Preview(List<LatLon> points, double[][] out, double[][] back, List<double[][]> backLeaves,
-			List<String> backVia, double lengthOutM, double lengthBackM, String name, List<Problem> problems) {
+			List<String> backVia, double lengthOutM, double lengthBackM, String name, List<Problem> problems,
+			@JsonInclude(JsonInclude.Include.NON_NULL) @Schema(requiredMode = RequiredMode.NOT_REQUIRED) BusCheck bus) {
+	}
+
+	/**
+	 * The Bus check (W18, W18b): this route as an extension of a bus route. Bus + new part are measured on the
+	 * longer direction.
+	 *
+	 * @param busName the bus route as it runs today ("Pettah → Makumbura")
+	 * @param busLengthM the bus's length on that direction
+	 * @param newLengthM the new part's length on it; only the new part earns points
+	 * @param totalM bus + new part, which must be at most {@code limitM}
+	 * @param name the extended route's name, from the bus's far end to the new end ("Pettah → Horana")
+	 * @param newEnd the new end ("Horana"), for "Extend Route 99 to Horana"
+	 * @param problems what would block saving it as an extension: EXTENSION_TOO_LONG (W18b), or OVERLAP when its
+	 * new part shares road with the user's other routes
+	 */
+	record BusCheck(long busRouteId, String number, String busName, double busLengthM, double newLengthM,
+			double totalM, double limitM, String name, String newEnd, List<Problem> problems) {
+	}
+
+	/** The bus route an extension extends. */
+	record BusRef(long id, String number) {
 	}
 
 	/**
 	 * One of the user's routes.
 	 * @param waypoints the drag points, snapped
 	 * @param busiest its busiest stretch at the last scoring run; absent until a run has scored its roads
+	 * @param extendsBus for an extension, the bus route it extends; absent for a new route
 	 */
 	@Schema(requiredProperties = { "id", "slot", "name", "start", "end", "waypoints", "out", "back", "lengthOutM",
 			"lengthBackM", "createdAt", "updatedAt" })
 	record RouteView(long id, int slot, String name, LatLon start, LatLon end, List<LatLon> waypoints, double[][] out,
 			double[][] back, double lengthOutM, double lengthBackM, Instant createdAt, Instant updatedAt,
-			@JsonInclude(JsonInclude.Include.NON_NULL) @Schema(requiredMode = RequiredMode.NOT_REQUIRED) Busiest busiest) {
+			@JsonInclude(JsonInclude.Include.NON_NULL) @Schema(requiredMode = RequiredMode.NOT_REQUIRED) Busiest busiest,
+			@JsonInclude(JsonInclude.Include.NON_NULL) @Schema(requiredMode = RequiredMode.NOT_REQUIRED) BusRef extendsBus) {
 	}
 
 	/**

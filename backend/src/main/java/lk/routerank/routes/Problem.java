@@ -12,8 +12,8 @@ import lk.routerank.roads.LatLon;
  *
  * @param point SIDE_ROAD and NO_ROAD_NEARBY: which point ("start", "end" or "waypoint")
  * @param nearest SIDE_ROAD: the nearest main road, offered instead
- * @param lengthM TOO_LONG: the longer direction's length
- * @param limitM TOO_LONG: the cap (40 km)
+ * @param lengthM TOO_LONG: the longer direction's length; EXTENSION_TOO_LONG: bus + new part
+ * @param limitM TOO_LONG and EXTENSION_TOO_LONG: the cap (40 km)
  * @param routeId OVERLAP: the user's route it overlaps
  * @param slot OVERLAP: that route's slot; SLOT_LOCKED: the locked slot
  * @param routeName OVERLAP: that route's name
@@ -39,7 +39,11 @@ record Problem(@Schema(requiredMode = RequiredMode.REQUIRED) Code code, String p
 		/** The slot changed in the last 24 hours (W24). */
 		SLOT_LOCKED,
 		/** All three slots hold other routes. */
-		SLOTS_FULL
+		SLOTS_FULL,
+		/** "Extend" was chosen but the route doesn't extend that bus route (any more). */
+		NOT_AN_EXTENSION,
+		/** Bus + new part is over 40 km on the longer direction (W18b). */
+		EXTENSION_TOO_LONG
 	}
 
 	static Problem of(Code code) {
@@ -56,6 +60,10 @@ record Problem(@Schema(requiredMode = RequiredMode.REQUIRED) Code code, String p
 
 	static Problem tooLong(double lengthM, double limitM) {
 		return new Problem(Code.TOO_LONG, null, null, lengthM, limitM, null, null, null, null);
+	}
+
+	static Problem extensionTooLong(double lengthM, double limitM) {
+		return new Problem(Code.EXTENSION_TOO_LONG, null, null, lengthM, limitM, null, null, null, null);
 	}
 
 	static Problem overlap(long routeId, int slot, String routeName) {
