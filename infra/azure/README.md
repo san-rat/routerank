@@ -57,7 +57,6 @@ Use one region for everything: Central India or Southeast Asia, whichever your s
      ROUTERANK_SCORING_PUBLISH_BUCKET=routerank-data
      ROUTERANK_SCORING_PUBLISH_ACCESS_KEY_ID=<token's Access Key ID>
      ROUTERANK_SCORING_PUBLISH_SECRET_ACCESS_KEY=<token's Secret Access Key>
-     ROUTERANK_ADMIN_EMAILS=<your Google email>
      ```
 
    - Set the repository variable `VITE_DATA_URL` to the bucket's public address
@@ -66,6 +65,24 @@ Use one region for everything: Central India or Southeast Asia, whichever your s
    Without these the job still scores every 30 minutes (My routes shows busiest stretches) but publishes
    nothing, and the log says so. It stays inside R2's free tier: files are named by content hash and only
    new ones are uploaded, and it stops uploading at 800,000 writes in a month (`publish_usage`).
+
+8. **Anti-fraud and admin (Phase 6):**
+   - In Cloudflare, under Turnstile, add a widget for `routerank.pages.dev` (and `localhost` only if you
+     want to try it locally), mode **Invisible**. Set its site key as the repository variable
+     `VITE_TURNSTILE_SITE_KEY` (public), and add its secret key to `~/routerank/.env`, with a new random key
+     for device signals (then `chmod 600` again and restart compose):
+
+     ```bash
+     ROUTERANK_TURNSTILE_SECRET=<the widget's secret key>
+     ROUTERANK_FRAUD_DEVICE_HMAC_KEY=<output of: openssl rand -hex 32>
+     ```
+
+     Set both at the same time as the site key reaches the site: with the secret set and no site key, every
+     sign-in and save is refused. Never change the HMAC key afterwards, or every device looks new.
+   - Make yourself an admin, by hand in the database (the role is never set through the API; a trigger writes
+     every change to the audit log): sign in on the site once, then over the usual temporary firewall rule
+     run `UPDATE app_user SET role = 'admin' WHERE email = '<your Google email>';`. `ROUTERANK_ADMIN_EMAILS`
+     is no longer read and can be removed from `.env`. The admin pages are at `/admin`, linked from nowhere.
 
 ## Deploys
 
