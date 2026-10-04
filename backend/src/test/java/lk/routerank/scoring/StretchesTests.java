@@ -47,16 +47,66 @@ class StretchesTests {
 				seg(3, 2, 3, 12, 5, 500), seg(4, 3, 4, 20, 6, 500)));
 		assertThat(ids(groups)).containsExactlyInAnyOrder(List.of(1L, 2L, 3L), List.of(4L));
 		Group merged = groups.stream().filter(g -> g.segments().size() == 3).findFirst().orElseThrow();
-		assertThat(merged.points()).isEqualTo(11);
 		assertThat(merged.lengthM()).isEqualTo(1500);
 	}
 
+	static Coverage.Route route(long user, int slot, long... segments) {
+		return new Coverage.Route(user, slot, segments);
+	}
+
 	@Test
-	void averagesAreWeightedByLength() {
-		List<Group> groups = StretchBuilder.build(List.of(seg(1, 0, 1, 10, 4, 900), seg(2, 1, 2, 11, 2, 100)));
-		assertThat(groups).hasSize(1);
-		assertThat(groups.get(0).points()).isEqualTo(10); // (10·900 + 11·100) / 1000 = 10.1
-		assertThat(groups.get(0).people()).isEqualTo(4); // 3.8
+	void aRouteCountsForAStretchWhenItCoversMoreThanHalf() {
+		// One 1 km stretch of four 250 m segments
+		List<Group> groups = StretchBuilder.build(List.of(seg(1, 0, 1, 10, 3, 250), seg(2, 1, 2, 10, 3, 250),
+				seg(3, 2, 3, 10, 3, 250), seg(4, 3, 4, 10, 3, 250)));
+		Coverage coverage = new Coverage(groups, List.of());
+		coverage.add(route(1, 1, 1, 2, 3, 4)); // all of it, #1
+		coverage.add(route(2, 2, 1, 2, 3)); // 75%, #2
+		coverage.add(route(3, 1, 1, 2)); // exactly half: doesn't count
+		coverage.add(route(4, 3, 4, 99)); // 25%, and a segment elsewhere
+		Group g = coverage.counted().get(0);
+		assertThat(g.votes()).containsExactly(1, 1, 0);
+		assertThat(g.points()).isEqualTo(5); // 3·1 + 2·1: the breakdown adds up
+		assertThat(g.people()).isEqualTo(2);
+	}
+
+	@Test
+	void peopleAreDistinctUsersAcrossTheStretch() {
+		List<Group> groups = StretchBuilder.build(List.of(seg(1, 0, 1, 10, 3, 500), seg(2, 1, 2, 10, 3, 500)));
+		Coverage coverage = new Coverage(groups, List.of());
+		coverage.add(route(7, 1, 1, 2)); // the same person's #1...
+		coverage.add(route(7, 2, 1, 2)); // ...and #2, both over the whole stretch
+		coverage.add(route(8, 3, 2, 1));
+		Group g = coverage.counted().get(0);
+		assertThat(g.votes()).containsExactly(1, 1, 1);
+		assertThat(g.points()).isEqualTo(6);
+		assertThat(g.people()).isEqualTo(2);
+	}
+
+	/** Galle Road as a dual carriageway, 0–2 eastbound (1, 2) and 2–0 westbound (3, 4), each piece 1 km. */
+	static List<ScoredSegment> dualCarriageway() {
+		ScoredSegment west1 = new ScoredSegment(3, "Western", false, "Galle Road", "A2", 1000, 11, 4, new int[] { 4, 0, 0 },
+				ScoredSegment.Node.at(79.82, 6.9003), ScoredSegment.Node.at(79.81, 6.9003),
+				new double[][] { { 79.82, 6.9003 }, { 79.81, 6.9003 } });
+		ScoredSegment west2 = new ScoredSegment(4, "Western", false, "Galle Road", "A2", 1000, 11, 4, new int[] { 4, 0, 0 },
+				ScoredSegment.Node.at(79.81, 6.9003), ScoredSegment.Node.at(79.80, 6.9003),
+				new double[][] { { 79.81, 6.9003 }, { 79.80, 6.9003 } });
+		return List.of(seg(1, 0, 1, 12, 4, 1000), seg(2, 1, 2, 12, 4, 1000), west1, west2);
+	}
+
+	static final List<long[]> DUAL_PAIRS = List.of(new long[] { 1, 4 }, new long[] { 2, 3 });
+
+	@Test
+	void aRoundTripOverBothCarriagewaysCountsOnce() {
+		List<Group> groups = StretchBuilder.build(dualCarriageway(), DUAL_PAIRS);
+		Coverage coverage = new Coverage(groups, DUAL_PAIRS);
+		coverage.add(route(1, 1, 1, 2, 3, 4)); // there on one carriageway, back on the other
+		coverage.add(route(2, 2, 1, 2)); // one way only: still the whole road
+		coverage.add(route(3, 3, 1, 4)); // the first 1 km of the 2 km road, both sides: exactly half
+		Group g = coverage.counted().get(0);
+		assertThat(g.votes()).containsExactly(1, 1, 0);
+		assertThat(g.points()).isEqualTo(5);
+		assertThat(g.people()).isEqualTo(2);
 	}
 
 	@Test
@@ -97,18 +147,18 @@ class StretchesTests {
 	}
 
 	@Test
+	void shortPiecesPreferANeighbourOnTheSameRoad() {
+		// A 150 m bit of the A2 between the A2 (far points) and a B road (closer points): it stays on the A2
+		List<Group> groups = StretchBuilder.build(List.of(seg(1, 0, 1, 30, 9, 500),
+				seg(2, 1, 2, 12, 4, 150),
+				seg(3, 2, 3, 11, 4, 500, "Western", false, "Hospital Road", "B84")));
+		assertThat(ids(groups)).containsExactlyInAnyOrder(List.of(1L, 2L), List.of(3L));
+	}
+
+	@Test
 	void bothCarriagewaysOfADualCarriagewayAreOneStretch() {
-		// Two one-way carriageways that never share an end, 0–2 one way and 2–0 the other, one road in length
-		ScoredSegment east1 = seg(1, 0, 1, 12, 4, 1000);
-		ScoredSegment east2 = seg(2, 1, 2, 12, 4, 1000);
-		ScoredSegment west1 = new ScoredSegment(3, "Western", false, "Galle Road", "A2", 1000, 11, 4, new int[] { 4, 0, 0 },
-				ScoredSegment.Node.at(79.82, 6.9003), ScoredSegment.Node.at(79.81, 6.9003),
-				new double[][] { { 79.82, 6.9003 }, { 79.81, 6.9003 } });
-		ScoredSegment west2 = new ScoredSegment(4, "Western", false, "Galle Road", "A2", 1000, 11, 4, new int[] { 4, 0, 0 },
-				ScoredSegment.Node.at(79.81, 6.9003), ScoredSegment.Node.at(79.80, 6.9003),
-				new double[][] { { 79.81, 6.9003 }, { 79.80, 6.9003 } });
-		List<Group> groups = StretchBuilder.build(List.of(east1, east2, west1, west2),
-				List.of(new long[] { 1, 4 }, new long[] { 2, 3 }));
+		// Two one-way carriageways that never share an end, one road in length
+		List<Group> groups = StretchBuilder.build(dualCarriageway(), DUAL_PAIRS);
 		assertThat(ids(groups)).containsExactly(List.of(1L, 2L, 3L, 4L));
 		assertThat(groups.get(0).lengthM()).isEqualTo(2000);
 	}
@@ -159,20 +209,25 @@ class StretchesTests {
 
 	@Test
 	void namesRepeatedOnDifferentRoadsGetTheRoad() {
-		Named marine = new Named(new Group("Western", List.of(seg(1, 0, 1, 9, 4, 500)), false), "Kollupitiya → Wellawatte",
-				"Marine Drive", new double[2][]);
-		Named galle = new Named(new Group("Western", List.of(seg(2, 5, 6, 9, 4, 500)), false), "Kollupitiya → Wellawatte",
-				"Galle Road", new double[2][]);
-		Named other = new Named(new Group("Western", List.of(seg(3, 9, 10, 9, 4, 500)), false), "Kadawatha → Yakkala",
-				"Kandy Road", new double[2][]);
+		Named marine = new Named(group(seg(1, 0, 1, 9, 4, 500)), "Kollupitiya → Wellawatte", "Marine Drive",
+				new double[2][]);
+		Named galle = new Named(group(seg(2, 5, 6, 9, 4, 500)), "Kollupitiya → Wellawatte", "Galle Road",
+				new double[2][]);
+		Named other = new Named(group(seg(3, 9, 10, 9, 4, 500)), "Kadawatha → Yakkala", "Kandy Road", new double[2][]);
 		assertThat(Naming.distinct(List.of(marine, galle, other))).extracting(Named::name)
 			.containsExactly("Kollupitiya → Wellawatte via Marine Drive", "Kollupitiya → Wellawatte via Galle Road",
 					"Kadawatha → Yakkala");
 	}
 
+	/** A counted stretch with the first segment's points (as #3 votes) and people, for naming and ranking. */
+	static Group group(ScoredSegment... segments) {
+		return new Group(segments[0].province(), List.of(segments), List.of(segments).stream().allMatch(ScoredSegment::link),
+				List.of(segments).stream().mapToDouble(ScoredSegment::lengthM).sum(), new int[] { 0, 0, segments[0].points() },
+				segments[0].people());
+	}
+
 	static Named named(String name, ScoredSegment... segments) {
-		return new Named(new Group(segments[0].province(), List.of(segments),
-				List.of(segments).stream().allMatch(ScoredSegment::link)), name, "Galle Road",
+		return new Named(group(segments), name, "Galle Road",
 				new double[][] { segments[0].line()[0], segments[segments.length - 1].line()[1] });
 	}
 

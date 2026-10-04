@@ -154,7 +154,10 @@ public class ScoringJob {
 		}
 		long run = importRun.get();
 		List<ScoredSegment> segments = store.scoredSegments(run, now);
-		List<Group> groups = StretchBuilder.build(segments, store.parallelPairs(segments));
+		List<long[]> parallel = store.parallelPairs(segments);
+		Coverage coverage = new Coverage(StretchBuilder.build(segments, parallel), parallel);
+		store.countedRoutes(now, coverage::add);
+		List<Group> groups = coverage.counted();
 
 		// Name each stretch from the nearest place to each end, the end nearer Colombo first
 		List<ScoredSegment.Node> ends = new ArrayList<>();

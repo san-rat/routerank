@@ -9,9 +9,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 import lk.routerank.scoring.Rankings.Link;
 import lk.routerank.scoring.Rankings.Stretch;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import tools.jackson.databind.JsonNode;
@@ -73,6 +75,28 @@ class ScoreStore {
 					ScoredSegment.Node.at(rs.getDouble("from_lon"), rs.getDouble("from_lat")),
 					ScoredSegment.Node.at(rs.getDouble("to_lon"), rs.getDouble("to_lat")), coordinates(rs.getString("line"))))
 			.list();
+	}
+
+	/**
+	 * Each counted route (as for {@link #scoredSegments}) with the segments it scores on, one at a time, so memory
+	 * stays flat however many routes there are.
+	 */
+	void countedRoutes(Instant now, Consumer<Coverage.Route> each) {
+		jdbc.sql("""
+				SELECT r.user_id, r.slot, array_agg(rs.segment_id) AS segments
+				FROM route r
+				JOIN app_user u ON u.id = r.user_id
+				JOIN route_segment rs ON rs.route_id = r.id AND rs.scores
+				WHERE r.removed_at IS NULL AND r.held_at IS NULL
+				  AND u.banned_at IS NULL AND u.live_at <= :now
+				GROUP BY r.id
+				ORDER BY r.id""")
+			.param("now", java.sql.Timestamp.from(now))
+			.query((RowCallbackHandler) rs -> {
+				Long[] ids = (Long[]) rs.getArray("segments").getArray();
+				each.accept(new Coverage.Route(rs.getLong("user_id"), rs.getInt("slot"),
+						java.util.Arrays.stream(ids).mapToLong(Long::longValue).toArray()));
+			});
 	}
 
 	private double[][] coordinates(String geoJson) {

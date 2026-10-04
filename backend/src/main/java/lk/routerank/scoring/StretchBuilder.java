@@ -10,7 +10,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.ToIntFunction;
 
 /**
  * Merges neighbouring scored segments into stretches (see the Architecture doc, "The 30-minute scoring job").
@@ -23,11 +22,14 @@ import java.util.function.ToIntFunction;
  * stretch's length.</li>
  * <li>A stretch never crosses a province border or a change of road: two pieces are the same road when they have
  * the same road number, or, when either has none, the same name.</li>
- * <li>Pieces under 200 m left on their own (bridges, roundabouts, short side bits) fold into the neighbouring
- * stretch with the closest points, and so do link roads; links with no such neighbour form link-only
- * stretches, shown on the map but never ranked.</li>
+ * <li>Pieces under 200 m left on their own (bridges, roundabouts, short side bits) fold into a neighbouring
+ * stretch on the same road where there is one, otherwise the one with the closest points. Link roads fold into
+ * the neighbour with the closest points; links with no such neighbour form link-only stretches, shown on the map
+ * but never ranked.</li>
  * </ul>
- * Segments with no points never reach the builder. The result is the same for the same input, whatever its order.
+ * Segment points only decide what merges; a stretch's own points come from the routes that cover most of it
+ * ({@link Coverage}). Segments with no points never reach the builder. The result is the same for the same input,
+ * whatever its order.
  */
 final class StretchBuilder {
 
@@ -45,42 +47,23 @@ final class StretchBuilder {
 	 * A stretch before it is named and ranked.
 	 *
 	 * @param lengthM length of road, each dual carriageway counted once
+	 * @param votes #1, #2 and #3 routes that count for it ({@link Coverage}); none until counted
+	 * @param people distinct users behind those routes
 	 */
-	record Group(String province, List<ScoredSegment> segments, boolean linkOnly, double lengthM) {
+	record Group(String province, List<ScoredSegment> segments, boolean linkOnly, double lengthM, int[] votes,
+			int people) {
 
-		/** For tests: no dual carriageways. */
-		Group(String province, List<ScoredSegment> segments, boolean linkOnly) {
-			this(province, segments, linkOnly, segments.stream().mapToDouble(ScoredSegment::lengthM).sum());
+		Group(String province, List<ScoredSegment> segments, boolean linkOnly, double lengthM) {
+			this(province, segments, linkOnly, lengthM, new int[3], 0);
 		}
 
-		/** Length-weighted average points, rounded. */
+		/** 3 / 2 / 1 for each #1 / #2 / #3 route that counts, so the breakdown adds up exactly. */
 		int points() {
-			return (int) Math.round(weighted(ScoredSegment::points));
+			return 3 * votes[0] + 2 * votes[1] + votes[2];
 		}
 
-		/** Length-weighted average people, rounded. */
-		int people() {
-			return (int) Math.round(weighted(ScoredSegment::people));
-		}
-
-		/** Length-weighted average #1, #2 and #3 votes, rounded ("Where the points come from"). */
-		int[] votes() {
-			int[] votes = new int[3];
-			for (int slot = 0; slot < 3; slot++) {
-				int i = slot;
-				votes[slot] = (int) Math.round(weighted(s -> s.votes()[i]));
-			}
-			return votes;
-		}
-
-		private double weighted(ToIntFunction<ScoredSegment> value) {
-			double sum = 0;
-			double length = 0;
-			for (ScoredSegment s : segments) {
-				sum += value.applyAsInt(s) * s.lengthM();
-				length += s.lengthM();
-			}
-			return sum / length;
+		Group withVotes(int[] votes, int people) {
+			return new Group(province, segments, linkOnly, lengthM, votes, people);
 		}
 
 		/** The segment a new stretch link is anchored to: its highest-scoring one (lowest ID on a tie). */
@@ -207,6 +190,7 @@ final class StretchBuilder {
 				}
 				double average = average(members);
 				Integer best = null;
+				boolean bestSameRoad = false;
 				double bestGap = Double.MAX_VALUE;
 				for (ScoredSegment s : members) {
 					for (ScoredSegment n : graph.neighbours(s)) {
@@ -214,9 +198,13 @@ final class StretchBuilder {
 						if (other == null || other == g || !provinces.get(other).equals(provinces.get(g))) {
 							continue;
 						}
+						// A neighbour on the same road wins; then the closest points
+						boolean same = !n.link() && sameRoad(s, n);
 						double gap = Math.abs(average(groups.get(other)) - average);
-						if (gap < bestGap || (gap == bestGap && other < best)) {
+						if (best == null || (same && !bestSameRoad)
+								|| (same == bestSameRoad && (gap < bestGap || (gap == bestGap && other < best)))) {
 							best = other;
+							bestSameRoad = same;
 							bestGap = gap;
 						}
 					}

@@ -178,6 +178,8 @@ class ScoringJobTests {
 		assertThat(heat.get("features").size()).isEqualTo(western.get("stretches").asInt());
 		JsonNode details = file(western.get("details").asString()).get("stretches").get(top.get("slug").asString());
 		assertThat(details.get("rankProvince").asInt()).isEqualTo(1);
+		// Where the points come from: two #1 routes and one #2, 2·3 + 1·2 = 8
+		assertThat(details.get("votes").values()).extracting(JsonNode::asInt).containsExactly(2, 1, 0);
 		assertThat(m.get("slugs").asString()).startsWith("slugs-");
 
 		// Cache: hashed files forever, the manifest for a minute

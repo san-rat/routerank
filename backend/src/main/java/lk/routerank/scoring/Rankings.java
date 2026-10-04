@@ -31,7 +31,9 @@ final class Rankings {
 	 *
 	 * @param slug its link, {@code /s/<slug>}
 	 * @param road the road's name or number, or null
-	 * @param votes #1, #2 and #3 votes (length-weighted averages)
+	 * @param points 3 / 2 / 1 for each #1 / #2 / #3 route covering more than half of it
+	 * @param people distinct users behind those routes
+	 * @param votes how many of those routes are #1, #2 and #3
 	 * @param ends its two ends as {@code [lon, lat]}, the one nearer Colombo first
 	 * @param rankOverall null when not on the leaderboards
 	 * @param rankProvince null when not on the leaderboards
