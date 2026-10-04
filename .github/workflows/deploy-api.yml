@@ -49,9 +49,16 @@ jobs:
 
       - name: Deploy to the VM
         run: |
-          scp infra/azure/compose.yml infra/azure/Caddyfile "$TARGET:routerank/"
+          scp infra/azure/compose.yml infra/azure/Caddyfile infra/azure/graph.env "$TARGET:routerank/"
+          # The routing graph named in graph.env, downloaded once and checked
+          ssh "$TARGET" 'set -eu; cd routerank; . ./graph.env; mkdir -p graphs
+            if [ ! -d "graphs/$GRAPH" ]; then
+              curl -fsSL "$GRAPH_URL" -o "graphs/$GRAPH.tar.gz"
+              echo "$GRAPH_SHA256  graphs/$GRAPH.tar.gz" | sha256sum -c -
+              tar -xzf "graphs/$GRAPH.tar.gz" -C graphs && rm "graphs/$GRAPH.tar.gz"
+            fi'
           echo "${{ secrets.GITHUB_TOKEN }}" | ssh "$TARGET" "docker login ghcr.io -u ${{ github.actor }} --password-stdin"
-          ssh "$TARGET" "cd routerank && docker compose pull && docker compose up -d --remove-orphans && docker logout ghcr.io && docker image prune -f"
+          ssh "$TARGET" "cd routerank && docker compose --env-file .env --env-file graph.env pull && docker compose --env-file .env --env-file graph.env up -d --remove-orphans && docker logout ghcr.io && docker image prune -f"
 
       - name: Smoke test
         run: curl --fail --silent --show-error --retry 18 --retry-delay 10 --retry-all-errors "https://${{ vars.AZURE_VM_HOST }}/actuator/health"

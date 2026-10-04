@@ -10,12 +10,13 @@ x-db-env: &db-env
 
 services:
   db:
-    image: postgis/postgis:16-3.5
+    image: postgis/postgis:18-3.6
     environment: *db-env
     ports:
       - "5432:5432"
     volumes:
-      - db-data:/var/lib/postgresql/data
+      # PostgreSQL 18 images keep their data under /var/lib/postgresql/18 (same major version as Azure)
+      - db-data-18:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U routerank -d routerank"]
       interval: 5s
@@ -70,4 +71,4 @@ services:
       - ../data/downloads:/work
 
 volumes:
-  db-data:
+  db-data-18:

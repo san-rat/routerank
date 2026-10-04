@@ -4,6 +4,70 @@
  */
 
 export interface paths {
+    "/api/routes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update"];
+        post?: never;
+        delete: operations["remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/routes/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["reorder"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/routes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list"];
+        put?: never;
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/routes/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/google": {
         parameters: {
             query?: never;
@@ -14,6 +78,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["google"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/places": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["search"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -56,6 +136,94 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        LatLon: {
+            /** Format: double */
+            lat: number;
+            /** Format: double */
+            lon: number;
+        };
+        RouteInput: {
+            start: components["schemas"]["LatLon"];
+            end: components["schemas"]["LatLon"];
+            waypoints: components["schemas"]["LatLon"][];
+            /** Format: int32 */
+            slot?: number;
+            /** Format: int64 */
+            routeId?: number;
+        };
+        RouteView: {
+            /** Format: int64 */
+            id: number;
+            /** Format: int32 */
+            slot: number;
+            name: string;
+            start: components["schemas"]["LatLon"];
+            end: components["schemas"]["LatLon"];
+            waypoints: components["schemas"]["LatLon"][];
+            out: number[][];
+            back: number[][];
+            /** Format: double */
+            lengthOutM: number;
+            /** Format: double */
+            lengthBackM: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        Order: {
+            routes: components["schemas"]["SlotAssignment"][];
+        };
+        SlotAssignment: {
+            /** Format: int64 */
+            routeId: number;
+            /** Format: int32 */
+            slot: number;
+        };
+        MyRoutes: {
+            routes: components["schemas"]["RouteView"][];
+            slots: components["schemas"]["SlotView"][];
+            /** Format: date-time */
+            countsFrom: string;
+        };
+        SlotView: {
+            /** Format: int32 */
+            slot: number;
+            /** Format: date-time */
+            lockedUntil?: string;
+            /** Format: date-time */
+            graceUntil?: string;
+        };
+        Preview: {
+            points: components["schemas"]["LatLon"][];
+            out: number[][];
+            back: number[][];
+            backLeaves: number[][][];
+            backVia: string[];
+            /** Format: double */
+            lengthOutM: number;
+            /** Format: double */
+            lengthBackM: number;
+            name: string;
+            problems: components["schemas"]["Problem"][];
+        };
+        Problem: {
+            /** @enum {string} */
+            code: "SIDE_ROAD" | "NO_ROAD_NEARBY" | "NO_ROUTE" | "NO_WAY_BACK" | "TOO_LONG" | "OVERLAP" | "SLOT_LOCKED" | "SLOTS_FULL";
+            point?: string;
+            nearest?: components["schemas"]["LatLon"];
+            /** Format: double */
+            lengthM?: number;
+            /** Format: double */
+            limitM?: number;
+            /** Format: int64 */
+            routeId?: number;
+            /** Format: int32 */
+            slot?: number;
+            routeName?: string;
+            /** Format: date-time */
+            until?: string;
+        };
         GoogleSignIn: {
             credential: string;
         };
@@ -67,6 +235,14 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             liveAt: string;
+        };
+        Place: {
+            name: string;
+            kind: string;
+            /** Format: double */
+            lat: number;
+            /** Format: double */
+            lon: number;
         };
         Nonce: {
             nonce: string;
@@ -80,6 +256,144 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RouteInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RouteView"];
+                };
+            };
+        };
+    };
+    remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    reorder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Order"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyRoutes"];
+                };
+            };
+        };
+    };
+    list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyRoutes"];
+                };
+            };
+        };
+    };
+    create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RouteInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RouteView"];
+                };
+            };
+        };
+    };
+    preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RouteInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Preview"];
+                };
+            };
+        };
+    };
     google: {
         parameters: {
             query?: never;
@@ -108,6 +422,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    search: {
+        parameters: {
+            query: {
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Place"][];
+                };
             };
         };
     };

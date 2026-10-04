@@ -5,7 +5,7 @@ from importlib.resources import files
 
 import psycopg
 
-from .extract import Piece, Province
+from .extract import Piece, Place, Province
 
 CAP_M = 1000  # segments are at most ~1 km
 SLIVER_M = 25  # border slivers shorter than this join their neighbour
@@ -52,3 +52,10 @@ def build_segments(conn: psycopg.Connection, run_id: int) -> int:
     conn.execute("UPDATE import_run SET finished_at = now(), segment_count = %s WHERE id = %s",
                  (count, run_id))
     return count
+
+
+def load_places(conn: psycopg.Connection, run_id: int, places: list[Place]) -> int:
+    with conn.cursor().copy("COPY place (import_run_id, osm_id, kind, name, geom) FROM STDIN") as copy:
+        for p in places:
+            copy.write_row((run_id, p.osm_id, p.kind, p.name, f"SRID=4326;POINT({p.lon:.7f} {p.lat:.7f})"))
+    return len(places)

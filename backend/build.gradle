@@ -38,6 +38,7 @@ dependencies {
 	implementation 'org.springframework.modulith:spring-modulith-starter-core'
 	implementation 'org.springframework.security:spring-security-oauth2-jose'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-api:3.1.1'
+	implementation 'com.graphhopper:graphhopper-core:11.1'
 	implementation 'org.flywaydb:flyway-database-postgresql'
 	runtimeOnly 'org.postgresql:postgresql'
 	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
@@ -54,4 +55,15 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// Builds the routing graph outside the API, locally or in CI (see data/README.md):
+// ./gradlew buildGraph -Posm=../data/downloads/main-roads.osm.pbf -Pout=../data/downloads/graph-2026-10-01
+tasks.register('buildGraph', JavaExec) {
+	group = 'application'
+	description = 'Builds the GraphHopper graph from the filtered main-roads extract'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'lk.routerank.roads.BuildGraph'
+	args = [project.findProperty('osm') ?: '', project.findProperty('out') ?: '']
+	jvmArgs = ['-Xmx2g']
 }
