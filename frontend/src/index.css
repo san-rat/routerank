@@ -245,6 +245,49 @@ a {
   color: var(--text-secondary);
 }
 
+/* ---------- Account (/me) ---------- */
+
+.account .google-button {
+  margin-top: 20px;
+  min-height: 44px;
+}
+
+.account [role='alert'] {
+  margin-top: 12px;
+}
+
+.account-details {
+  margin: 16px 0 24px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--surface-card);
+  box-shadow: var(--shadow-soft);
+}
+
+.account-details dt {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.account-details dd {
+  margin: 2px 0 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.account-details dd:last-child {
+  margin-bottom: 0;
+}
+
+.secondary-button {
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-card);
+  font-weight: 600;
+}
+
 /* ---------- Desktop: left panel (Figma "Desktop panel header") ---------- */
 
 @media (min-width: 900px) {

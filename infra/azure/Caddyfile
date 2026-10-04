@@ -1,0 +1,13 @@
+{
+	# The Pages Function sets X-Forwarded-For to the visitor's IP, so keep it instead of replacing it.
+	# Safe because the API only trusts that header on requests carrying the proxy secret.
+	servers {
+		trusted_proxies static 0.0.0.0/0 ::/0
+	}
+}
+
+# API_HOST is the VM's free address, e.g. routerank-api.centralindia.cloudapp.azure.com;
+# Caddy gets and renews its Let's Encrypt certificate
+{$API_HOST} {
+	reverse_proxy api:8080
+}

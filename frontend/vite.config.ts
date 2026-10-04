@@ -42,8 +42,19 @@ export default defineConfig(({ command, mode }) => {
   if (command === 'build' && mode !== 'test' && !loadEnv(mode, process.cwd()).VITE_TILES_URL) {
     throw new Error('VITE_TILES_URL must be set for a production build (the PMTiles URL on R2)')
   }
+  // Local stand-in for the Pages Function in functions/api: forwards /api to the API with the proxy
+  // secret, so the browser only ever talks to the site's own origin (same as production)
+  const env = loadEnv(mode, process.cwd(), '')
+  const apiProxy = {
+    '/api': {
+      target: env.API_PROXY_TARGET || 'http://localhost:8080',
+      headers: { 'X-RouteRank-Proxy-Secret': env.ROUTERANK_AUTH_PROXY_SECRET || 'local-dev-proxy-secret' },
+    },
+  }
   return {
     plugins: [react(), localTiles()],
+    server: { proxy: apiProxy },
+    preview: { proxy: apiProxy },
     test: {
       environment: 'jsdom',
       setupFiles: ['./src/test/setup.ts'],

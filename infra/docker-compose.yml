@@ -31,6 +31,10 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/routerank
       SPRING_DATASOURCE_USERNAME: routerank
       SPRING_DATASOURCE_PASSWORD: routerank
+      # Local values; the web service's nginx sends the same proxy secret
+      ROUTERANK_AUTH_PROXY_SECRET: local-dev-proxy-secret
+      ROUTERANK_AUTH_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-not-configured.apps.googleusercontent.com}
+      ROUTERANK_AUTH_ALLOWED_ORIGINS: http://localhost:8081,http://localhost:5173,http://localhost:4173
     ports:
       - "8080:8080"
 

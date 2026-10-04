@@ -30,6 +30,7 @@ jobs:
           filters: |
             backend:
               - 'backend/**'
+              - 'frontend/src/api/openapi.json'
               - '.github/workflows/ci.yml'
               - '.github/workflows/backend.yml'
             frontend:
