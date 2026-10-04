@@ -9,6 +9,7 @@ import ruler from '../assets/icons/ruler.svg'
 import swapAmber from '../assets/icons/swap-amber.svg'
 import swapTeal from '../assets/icons/swap-teal.svg'
 import undo from '../assets/icons/undo.svg'
+import { BusCheckSheet } from './BusCheck'
 import { SideRoadSheet, SignInGate } from './common'
 import { draftActions, ensurePreview, useDraft } from './draft'
 import { formatKm } from './geometry'
@@ -20,7 +21,10 @@ const MAX_M = 40_000
 const MOBILE_FIT = { top: 130, bottom: 380, left: 40, right: 40 }
 const DESKTOP_FIT = { top: 60, bottom: 60, left: 60, right: 60 }
 
-/** /add/route — the route on the map, adjusted by dragging; every rule checked before continuing (W17, W21–W23, W33) */
+/**
+ * /add/route — the route on the map, adjusted by dragging; every rule checked before continuing (W17, W21–W23, W33),
+ * then the Bus check when it extends a bus route (W18, W18b)
+ */
 export function RoutePreviewPage() {
   return (
     <SignInGate title="Add a route">
@@ -37,6 +41,8 @@ function RoutePreview() {
   const preview = draft.preview
   // After "Reroute around it" the overlap shows as a note instead of a sheet, while the user drags
   const [rerouting, setRerouting] = useState(false)
+  // Continue opens the Bus check when the route extends a bus route
+  const [choosing, setChoosing] = useState(false)
 
   useEffect(() => {
     ensurePreview()
@@ -72,15 +78,39 @@ function RoutePreview() {
   const pointProblem = problems.find((p) => p.code === 'SIDE_ROAD' || p.code === 'NO_ROAD_NEARBY')
   const overlap = problems.find((p) => p.code === 'OVERLAP')
   const longer = preview ? Math.max(preview.lengthOutM, preview.lengthBackM) : 0
-  const ok = preview && problems.length === 0 && !draft.previewing
+  const bus = preview?.bus
+  // Saving it as an extension can work even where saving it as a new route can't (an overlap on the bus's road)
+  const canExtend = !!bus && bus.problems.length === 0
+  const ok = preview && (problems.length === 0 || canExtend) && !draft.previewing
   const name = preview?.name || draft.editing?.name || 'Your route'
 
   function leave() {
     navigate('/add')
   }
 
+  function next() {
+    if (bus) {
+      setChoosing(true)
+      return
+    }
+    draftActions.setExtend(undefined)
+    navigate('/add/rank')
+  }
+
   let card
-  if (!preview && draft.previewFailed) {
+  if (choosing && preview && bus && !draft.previewing) {
+    card = (
+      <BusCheckSheet
+        key={`${bus.busRouteId}-${bus.totalM}`}
+        preview={preview}
+        bus={bus}
+        onChoose={(extend) => {
+          draftActions.setExtend(extend)
+          navigate('/add/rank')
+        }}
+      />
+    )
+  } else if (!preview && draft.previewFailed) {
     card = (
       <section className="route-sheet">
         <p role="alert">Couldn't work out the route.</p>
@@ -148,7 +178,7 @@ function RoutePreview() {
         </button>
       </section>
     )
-  } else if (overlap && !rerouting) {
+  } else if (overlap && !rerouting && !canExtend) {
     card = (
       <section className="route-sheet" aria-label={`This overlaps your route #${overlap.slot}`}>
         <div className="grabber" />
@@ -222,7 +252,7 @@ function RoutePreview() {
         <p className="hint">
           <img src={info} alt="" width={16} height={16} /> Drag the pins to reroute · tap the line to add a waypoint · tap a waypoint to remove it
         </p>
-        <button type="button" className="primary-button" disabled={!ok} onClick={() => navigate('/add/rank')}>
+        <button type="button" className="primary-button" disabled={!ok} onClick={next}>
           {draft.previewing ? 'Checking…' : 'Continue'}
         </button>
       </section>

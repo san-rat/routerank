@@ -3,6 +3,7 @@ import { lazy, Suspense, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useMatch } from 'react-router'
 import locateIcon from '../assets/icons/locate.svg'
 import plus from '../assets/icons/plus.svg'
+import { BusChip, BusesOnMap } from '../buses/Buses'
 import { ProvincePicker } from '../map/ProvincePicker'
 import { DEFAULT_PROVINCE, provinceBySlug } from '../map/provinces'
 import { useFocus } from '../rankings/focus'
@@ -31,15 +32,19 @@ export function AppShell() {
   const { pathname } = useLocation()
   const onMapPage = useSection() === 'map'
   // The first two add-route steps draw on the map, so it shows there on phones too
-  const drawing = pathname === '/add' || pathname === '/add/route'
+  // So does drawing a bus route on the admin pages
+  const drawing = pathname === '/add' || pathname === '/add/route' || /^\/admin\/buses\/[^/]+$/.test(pathname)
   const match = useMatch('/map/:province')
   const stretchPage = useMatch('/s/:stretch') !== null
+  // A stretch's or a bus route's page: the map zooms to it and its sheet covers the lower half on phones
+  const busPage = useMatch('/bus/:number') !== null
+  const focusPage = stretchPage || busPage
   const focus = useFocus()
   // On a stretch's page the map shows its province (from the overall leaderboard, that can be another province)
-  const slug = match?.params.province ?? (stretchPage && focus ? focus.province : DEFAULT_PROVINCE)
+  const slug = match?.params.province ?? (focusPage && focus ? focus.province : DEFAULT_PROVINCE)
   const province = provinceBySlug(slug) ?? provinceBySlug(DEFAULT_PROVINCE)!
   // W08 shows only its own card: no legend, and its button adds the first route
-  const noVotes = useNoVotes(province.slug) && !stretchPage
+  const noVotes = useNoVotes(province.slug) && !focusPage
   const [map, setMap] = useState<MapLibreMap | null>(null)
   const [locating, setLocating] = useState(false)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -66,12 +71,13 @@ export function AppShell() {
     <div className="map-area">
       <Suspense fallback={<div className="map-loading" />}>
         <MapView province={province} padding={desktop ? DESKTOP_PADDING : MOBILE_PADDING} onReady={setMap}
-          focus={stretchPage ? focus?.bbox : undefined}
+          focus={focusPage ? focus?.bbox : undefined}
           focusPadding={desktop ? DESKTOP_FOCUS_PADDING : MOBILE_FOCUS_PADDING} />
       </Suspense>
       {!drawing && (
         <div className="map-chips">
           <ProvincePicker current={province} />
+          <BusChip />
         </div>
       )}
       <button className={`icon-button locate ${drawing ? 'drawing' : ''}`} onClick={locate} aria-label="Show my location">
@@ -83,9 +89,11 @@ export function AppShell() {
         </p>
       )}
       {onMapPage && !drawing && <HeatOnMap province={province.slug} />}
-      {onMapPage && (desktop || !stretchPage) && !noVotes && <Legend />}
-      {onMapPage && !stretchPage && <NoVotes province={province.slug} />}
-      {onMapPage && (desktop || !stretchPage) && !noVotes && (
+      {/* Bus routes show behind the route preview too, for the Bus check (W18) */}
+      {((onMapPage && !drawing) || pathname === '/add/route') && <BusesOnMap />}
+      {onMapPage && (desktop || !focusPage) && !noVotes && <Legend />}
+      {onMapPage && !focusPage && <NoVotes province={province.slug} />}
+      {onMapPage && (desktop || !focusPage) && !noVotes && (
         <Link className="add-route-button" to="/add" onClick={() => draftActions.reset()}>
           <img src={plus} alt="" width={20} height={20} /> Add route
         </Link>
@@ -112,7 +120,7 @@ export function AppShell() {
       <div className="app">
         {mapLayer}
         <Outlet />
-        {!pathname.startsWith('/add') && !stretchPage && <WebNav />}
+        {!pathname.startsWith('/add') && !focusPage && <WebNav />}
       </div>
     </MapContext>
   )

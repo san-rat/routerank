@@ -1,0 +1,11 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Radio" clip-path="url(#clip0_0_360)">
+<path id="Vector" d="M11 20.5C16.2467 20.5 20.5 16.2467 20.5 11C20.5 5.75329 16.2467 1.5 11 1.5C5.75329 1.5 1.5 5.75329 1.5 11C1.5 16.2467 5.75329 20.5 11 20.5Z" fill="white" stroke="#0F766E" stroke-width="2"/>
+<path id="Vector_2" d="M11 16C13.7614 16 16 13.7614 16 11C16 8.23858 13.7614 6 11 6C8.23858 6 6 8.23858 6 11C6 13.7614 8.23858 16 11 16Z" fill="#0F766E"/>
+</g>
+<defs>
+<clipPath id="clip0_0_360">
+<rect width="22" height="22" fill="white"/>
+</clipPath>
+</defs>
+</svg>

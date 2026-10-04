@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { api, type LatLon, type Preview, type RouteView } from '../api/client'
+import { api, type LatLon, type Preview, type Problem, type RouteView } from '../api/client'
 import { waypointIndex } from './geometry'
 
 /** The route being added or edited, kept across the add-route steps (and a page reload) */
@@ -16,6 +16,8 @@ export interface Draft {
   editing?: { id: number; slot: number; name: string }
   /** The slot the user started from ("Add your #3 route"), preselected on the rank step */
   preferredSlot?: number
+  /** The bus route the user chose to extend at the Bus check (W18); unset for a new route */
+  extend?: number
   preview?: Preview
   previewing: boolean
   previewFailed: boolean
@@ -51,10 +53,10 @@ function set(next: Partial<Draft>, replace = false) {
   // Replace (not merge) for a fresh draft, or the old start and end would survive
   draft = replace ? { ...EMPTY, ...next } : { ...draft, ...next }
   try {
-    const { start, end, waypoints, startLabel, endLabel, editing, fromSearch, preferredSlot } = draft
+    const { start, end, waypoints, startLabel, endLabel, editing, fromSearch, preferredSlot, extend } = draft
     sessionStorage.setItem(
       STORAGE,
-      JSON.stringify({ start, end, waypoints, startLabel, endLabel, editing, fromSearch, preferredSlot }),
+      JSON.stringify({ start, end, waypoints, startLabel, endLabel, editing, fromSearch, preferredSlot, extend }),
     )
   } catch {
     // storage blocked: the draft lasts until the page closes
@@ -62,10 +64,10 @@ function set(next: Partial<Draft>, replace = false) {
   listeners.forEach((listener) => listener())
 }
 
-/** Changes the points (remembering the old ones for undo) and asks for a new preview */
+/** Changes the points (remembering the old ones for undo) and asks for a new preview; the Bus check is asked again */
 function change(points: Partial<Points>, extra: Partial<Draft> = {}) {
   const { start, end, waypoints, startLabel, endLabel } = draft
-  set({ ...extra, ...points, history: [...draft.history, { start, end, waypoints, startLabel, endLabel }].slice(-20) })
+  set({ extend: undefined, ...extra, ...points, history: [...draft.history, { start, end, waypoints, startLabel, endLabel }].slice(-20) })
   schedulePreview()
 }
 
@@ -142,11 +144,15 @@ export const draftActions = {
   undo() {
     const previous = draft.history.at(-1)
     if (!previous) return
-    set({ ...previous, history: draft.history.slice(0, -1) })
+    set({ ...previous, extend: undefined, history: draft.history.slice(0, -1) })
     schedulePreview()
   },
   retry() {
     schedulePreview()
+  },
+  /** The Bus check's choice: extend this bus route, or (undefined) keep it as a new route */
+  setExtend(busRouteId: number | undefined) {
+    set({ extend: busRouteId })
   },
   /** Edit (or replace) one of the user's routes: its points, in its slot */
   edit(route: Pick<RouteView, 'id' | 'slot' | 'name'>, points?: Pick<RouteView, 'start' | 'end' | 'waypoints'>) {
@@ -175,6 +181,15 @@ export const draftActions = {
 /** Picks up a restored draft's preview after a reload */
 export function ensurePreview() {
   if (draft.start && draft.end && !draft.preview && !draft.previewing) schedulePreview()
+}
+
+/** What blocks saving the draft as the user chose it: as an extension (the Bus check's problems) or a new route */
+export function blockingProblems(d: Draft): Problem[] {
+  const preview = d.preview
+  if (!preview) return []
+  if (d.extend === undefined) return preview.problems
+  if (preview.bus?.busRouteId !== d.extend) return [{ code: 'NOT_AN_EXTENSION' }]
+  return preview.bus.problems
 }
 
 export function getDraft(): Draft {

@@ -7,8 +7,9 @@ import clock from '../assets/icons/clock-12.svg'
 import info from '../assets/icons/info-16.svg'
 import mapIcon from '../assets/icons/map-white.svg'
 import routeIcon from '../assets/icons/route-teal.svg'
+import { deviceSignal, turnstileToken } from '../fraud/botCheck'
 import { LockedDialog, SignInGate } from './common'
-import { draftActions, useDraft } from './draft'
+import { blockingProblems, draftActions, useDraft } from './draft'
 import { formatKm } from './geometry'
 import { formatWait, loadMyRoutes, lockedUntil, placeInSlot, POINTS, SLOTS, useMyRoutes } from './myRoutes'
 
@@ -32,6 +33,8 @@ function Rank() {
   const [locked, setLocked] = useState<Problem | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState<RouteView | null>(null)
+  // Hidden from people (and screen readers); only a bot fills it in
+  const [website, setWebsite] = useState('')
 
   useEffect(() => {
     loadMyRoutes()
@@ -39,7 +42,9 @@ function Rank() {
 
   if (saved) return <Saved route={saved} countsFrom={myRoutes.kind === 'loaded' ? myRoutes.data.countsFrom : undefined} />
   const preview = draft.preview
-  if (!preview || preview.problems.length > 0 || !draft.start || !draft.end) return <Navigate to="/add/route" replace />
+  if (!preview || blockingProblems(draft).length > 0 || !draft.start || !draft.end) return <Navigate to="/add/route" replace />
+  // An extension is named by the whole extended route ("Pettah → Horana")
+  const name = draft.extend !== undefined && preview.bus ? preview.bus.name : preview.name
   if (myRoutes.kind !== 'loaded') {
     return <main className="page">{myRoutes.kind === 'error' ? <p role="alert">Couldn't load your routes.</p> : <p>Loading…</p>}</main>
   }
@@ -67,8 +72,18 @@ function Rank() {
     if (slot === null) return
     setSaving(true)
     setError(null)
-    const input = { start: draft.start!, end: draft.end!, waypoints: draft.waypoints, slot }
     try {
+      const [turnstile, device] = await Promise.all([turnstileToken('save'), deviceSignal()])
+      const input = {
+        start: draft.start!,
+        end: draft.end!,
+        waypoints: draft.waypoints,
+        slot,
+        extend: draft.extend,
+        turnstile,
+        device,
+        website: website || undefined,
+      }
       const route = editingId ? await api.updateRoute(editingId, input) : await api.createRoute(input)
       await loadMyRoutes()
       setSaved(route)
@@ -78,7 +93,9 @@ function Rank() {
       const lock = problems.find((p) => p.code === 'SLOT_LOCKED')
       if (lock) setLocked(lock)
       else if (problems.length > 0) navigate('/add/route') // the route changed under us (e.g. another tab); re-check it
-      else setError(e instanceof ApiError && e.status === 429 ? 'Too many changes in a short time. Try again in a few minutes.' : "Couldn't save. Please try again.")
+      else if (e instanceof ApiError && e.status === 429) setError('Too many changes in a short time. Try again in a few minutes.')
+      else if (!(e instanceof ApiError) || e.code?.startsWith('bot_check')) setError("Couldn't check that you're not a bot. Please try again.")
+      else setError("Couldn't save. Please try again.")
       await loadMyRoutes()
     } finally {
       setSaving(false)
@@ -99,8 +116,12 @@ function Rank() {
           <img src={routeIcon} alt="" width={22} height={22} />
         </span>
         <div>
-          <strong>{preview.name}</strong>
-          <span>{formatKm(Math.max(preview.lengthOutM, preview.lengthBackM))}</span>
+          <strong>{name}</strong>
+          <span>
+            {draft.extend !== undefined && preview.bus
+              ? `Extends bus ${preview.bus.number} · ${formatKm(preview.bus.newLengthM)} new earns points`
+              : formatKm(Math.max(preview.lengthOutM, preview.lengthBackM))}
+          </span>
         </div>
       </div>
       <h2 className="section-label">Pick a slot</h2>
@@ -122,7 +143,7 @@ function Rank() {
               <span className="slot-option-row">
                 <span className={`slot-badge ${selected ? 'teal' : 'empty'}`}>#{s}</span>
                 <span className="slot-option-text">
-                  <strong>{selected ? preview.name : current ? current.name : 'Empty slot'}</strong>
+                  <strong>{selected ? name : current ? current.name : 'Empty slot'}</strong>
                   {option.reason ? (
                     <span className="locked-text">
                       <img src={clock} alt="" width={12} height={12} /> {option.reason}
@@ -148,6 +169,10 @@ function Rank() {
       <p className="hint">
         <img src={info} alt="" width={16} height={16} /> Each slot can be changed once every 24 hours.
       </p>
+      <label className="honeypot" aria-hidden="true">
+        Website
+        <input type="text" name="website" tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} />
+      </label>
       {error && <p role="alert">{error}</p>}
       <button type="button" className="primary-button sticky" disabled={slot === null || saving || optionFor(slot ?? 1).disabled} onClick={save}>
         {saving ? 'Saving…' : 'Save my vote'}
