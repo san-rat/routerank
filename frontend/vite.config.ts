@@ -40,7 +40,8 @@ function localTiles(): Plugin {
 // Production only: shorten the map's request chain (page → app JS → map JS → tiles).
 // - preconnect to the tile and glyph hosts so their TLS handshakes overlap the JS downloads;
 // - on pages that show a map (same rule as AppShell: always on desktop, map routes on mobile),
-//   start fetching the MapView chunk alongside the app JS. Other pages still skip MapLibre.
+//   start fetching the MapView chunk alongside the app JS (the add-route steps draw on the map too).
+//   Other pages still skip MapLibre.
 function fasterMap(tilesUrl: string | undefined): Plugin {
   return {
     name: 'faster-map',
@@ -55,7 +56,7 @@ function fasterMap(tilesUrl: string | undefined): Plugin {
         tags.push({
           tag: 'script',
           children:
-            `if(matchMedia('(min-width: 900px)').matches||!/^\\/(leaderboard|me|add)|^\\/(how-it-works|privacy)$/.test(location.pathname)){` +
+            `if(matchMedia('(min-width: 900px)').matches||!/^\\/(leaderboard|me|add\\/rank)|^\\/(how-it-works|privacy)$/.test(location.pathname)){` +
             `var l=document.createElement('link');l.rel='modulepreload';l.href='/${mapChunk.fileName}';document.head.appendChild(l)}`,
           injectTo: 'head',
         })
