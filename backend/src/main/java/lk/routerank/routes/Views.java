@@ -54,6 +54,8 @@ final class Views {
 	 * @param problems what would block saving it as a new route
 	 * @param bus the Bus check (W18): the bus route it would extend; absent when it doesn't extend one
 	 */
+	@Schema(requiredProperties = { "points", "out", "back", "backLeaves", "backVia", "lengthOutM", "lengthBackM", "name",
+			"problems" })
 	record Preview(List<LatLon> points, double[][] out, double[][] back, List<double[][]> backLeaves,
 			List<String> backVia, double lengthOutM, double lengthBackM, String name, List<Problem> problems,
 			@JsonInclude(JsonInclude.Include.NON_NULL) @Schema(requiredMode = RequiredMode.NOT_REQUIRED) BusCheck bus) {

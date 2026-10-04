@@ -3,7 +3,6 @@ package lk.routerank.busroutes;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -70,7 +69,7 @@ public class BusRoutes {
 		}
 		return active().stream()
 			.flatMap(bus -> ExtensionCheck.match(bus, plan.out().line(), plan.back().line()).stream())
-			.max(Comparator.comparingDouble(ExtensionCheck.Match::alongM))
+			.max(ExtensionCheck.Match.BEST)
 			.map(this::extension);
 	}
 

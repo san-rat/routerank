@@ -23,6 +23,9 @@ final class ExtensionCheck {
 	/** The new part must be at least this long. */
 	static final double MIN_NEW_M = 500;
 
+	/** Two ends this much as close to a route count as as close (then the longer run along the bus wins). */
+	static final double SAME_END_M = 50;
+
 	/** A point this close to the bus's line is on the bus. */
 	static final double ON_BUS_M = 30;
 
@@ -66,10 +69,23 @@ final class ExtensionCheck {
 	 * @param newBackM the new part's length on the route's way back
 	 * @param totalOutM bus + new part, travelling the way the route's way there goes
 	 * @param totalBackM bus + new part, travelling the way the route's way back goes
-	 * @param alongM how much of the route runs along the bus (which match wins when two could)
+	 * @param endDistanceM how close the route passes to that end
+	 * @param alongM how much of the route runs along the bus
 	 */
 	record Match(Bus bus, boolean atBusEnd, boolean throughEnd, double newOutM, double newBackM, double totalOutM,
-			double totalBackM, double alongM) {
+			double totalBackM, double endDistanceM, double alongM) {
+
+		/**
+		 * Which match wins when two could (both ends of a short bus, or two buses): the end the route passes
+		 * closest to (within {@value #SAME_END_M} m counts as as close), then the longer run along the bus.
+		 */
+		static final java.util.Comparator<Match> BEST = (a, b) -> {
+			if (Math.abs(a.endDistanceM() - b.endDistanceM()) > SAME_END_M) {
+				return Double.compare(b.endDistanceM(), a.endDistanceM());
+			}
+			return Double.compare(a.alongM(), b.alongM());
+		};
+
 
 		double longerTotalM() {
 			return Math.max(totalOutM, totalBackM);
@@ -90,7 +106,7 @@ final class ExtensionCheck {
 		Match best = null;
 		for (boolean atBusEnd : new boolean[] { true, false }) {
 			Match m = matchAt(bus, atBusEnd, out, back);
-			if (m != null && (best == null || m.alongM() > best.alongM())) {
+			if (m != null && (best == null || Match.BEST.compare(m, best) > 0)) {
 				best = m;
 			}
 		}
@@ -125,7 +141,7 @@ final class ExtensionCheck {
 		double totalOut = (throughEnd ? busInto : busFrom) + newOut;
 		double totalBack = (throughEnd ? busFrom : busInto) + newBack;
 		double alongM = throughEnd ? before.lengthM() * before.share() : after.lengthM() * after.share();
-		return new Match(bus, atBusEnd, throughEnd, newOut, newBack, totalOut, totalBack, alongM);
+		return new Match(bus, atBusEnd, throughEnd, newOut, newBack, totalOut, totalBack, cut.distanceM(), alongM);
 	}
 
 	private static Side side(Bus bus, List<LatLon> part) {

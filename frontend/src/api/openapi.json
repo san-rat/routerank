@@ -1179,7 +1179,8 @@
           "bus" : {
             "$ref" : "#/components/schemas/BusCheck"
           }
-        }
+        },
+        "required" : [ "back", "backLeaves", "backVia", "lengthBackM", "lengthOutM", "name", "out", "points", "problems" ]
       },
       "Problem" : {
         "type" : "object",

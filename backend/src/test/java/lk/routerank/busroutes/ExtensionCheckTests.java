@@ -138,6 +138,21 @@ class ExtensionCheckTests {
 	}
 
 	@Test
+	void onAShortBusTheEndTheRouteStartsAtWins() {
+		// A 1.3 km bus. The route starts at its end, runs back up it to within 300 m of its start, then turns east:
+		// that extends it at its end, even though it also passes near its start
+		double top = 6.935;
+		double bottom = top - 0.012;
+		List<LatLon> busLine = line(new LatLon(top, LON), new LatLon(bottom, LON));
+		Bus shortBus = new Bus(2, "138", "Masangasweediya", "NewBazzar", busLine.getFirst(), busLine.getLast(), busLine,
+				busLine.reversed(), Lines.lengthM(busLine), Lines.lengthM(busLine), Set.of());
+		List<LatLon> out = line(new LatLon(bottom, LON), new LatLon(top - 0.0027, LON), new LatLon(top - 0.0027, 79.88));
+		Match m = ExtensionCheck.match(shortBus, out, out.reversed()).orElseThrow();
+		assertThat(m.atBusEnd()).isTrue();
+		assertThat(m.endDistanceM()).isLessThan(1);
+	}
+
+	@Test
 	void aBusOver40KmCanStillBeMatchedButNeverFits() {
 		List<LatLon> out = line(new LatLon(6.885, LON), new LatLon(BOTTOM, LON), new LatLon(BOTTOM, 79.90));
 		Match m = ExtensionCheck.match(bus(41_000, 41_000), out, out.reversed()).orElseThrow();

@@ -544,7 +544,7 @@ export interface components {
             lengthBackM: number;
             name: string;
             problems: components["schemas"]["Problem"][];
-            bus: components["schemas"]["BusCheck"];
+            bus?: components["schemas"]["BusCheck"];
         };
         Problem: {
             /** @enum {string} */
