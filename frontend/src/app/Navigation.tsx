@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { NavLink } from 'react-router'
 import googleG from '../assets/icons/google-g.svg'
 import logoMark from '../assets/icons/logo-mark.svg'
@@ -13,6 +14,7 @@ import routeActive from '../assets/icons/route-active.svg'
 import routeTabActive from '../assets/icons/route-tab-active.svg'
 import routeTab from '../assets/icons/route-tab.svg'
 import route from '../assets/icons/route.svg'
+import { loadAccount, useAccount } from '../auth/account'
 import { type Section, useSection } from './section'
 
 const SECTIONS: { id: Section; label: string; to: string }[] = [
@@ -42,7 +44,32 @@ export function WebNav() {
   )
 }
 
-/** Desktop panel header (Figma "Desktop panel header"), signed-out state */
+/** "Sign in", or the signed-in account; asks the API only if this browser signed in before */
+function AccountChip() {
+  const account = useAccount()
+  useEffect(() => {
+    loadAccount()
+  }, [])
+  if (account.kind === 'signed-in') {
+    const { email } = account.me
+    return (
+      <NavLink to="/me" className="sign-in signed-in" aria-label={`Account: ${email}`} title={email}>
+        <span className="avatar" aria-hidden="true">
+          {email.charAt(0).toUpperCase()}
+        </span>
+        Account
+      </NavLink>
+    )
+  }
+  return (
+    <NavLink to="/me" className="sign-in">
+      <img src={googleG} alt="" width={18} height={18} />
+      Sign in
+    </NavLink>
+  )
+}
+
+/** Desktop panel header (Figma "Desktop panel header") */
 export function PanelHeader() {
   const section = useSection()
   return (
@@ -50,10 +77,7 @@ export function PanelHeader() {
       <div className="brand-row">
         <img src={logoMark} alt="" width={36} height={36} />
         <strong>RouteRank</strong>
-        <NavLink to="/me" className="sign-in">
-          <img src={googleG} alt="" width={18} height={18} />
-          Sign in
-        </NavLink>
+        <AccountChip />
       </div>
       <nav className="tabs" aria-label="Main">
         {SECTIONS.map(({ id, label, to }) => {

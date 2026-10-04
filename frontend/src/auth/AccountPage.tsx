@@ -1,34 +1,22 @@
-import { useCallback, useEffect, useState } from 'react'
-import { api, ApiError, type Me } from '../api/client'
+import { useEffect } from 'react'
 import { loadGoogle } from './google'
+import { loadAccount, signedIn, signOut, useAccount } from './account'
 import { SignInButton } from './SignInButton'
-
-type State = { kind: 'loading' } | { kind: 'signed-out' } | { kind: 'error' } | { kind: 'signed-in'; me: Me }
 
 const dateTime = new Intl.DateTimeFormat('en-LK', { dateStyle: 'medium', timeStyle: 'short' })
 const date = new Intl.DateTimeFormat('en-LK', { dateStyle: 'medium' })
 
 /** /me: sign in with Google, or see the signed-in account */
 export function AccountPage() {
-  const [state, setState] = useState<State>({ kind: 'loading' })
+  const state = useAccount()
 
   useEffect(() => {
-    let cancelled = false
-    api.me().then(
-      (me) => !cancelled && setState({ kind: 'signed-in', me }),
-      (error) => !cancelled && setState({ kind: error instanceof ApiError && error.status === 401 ? 'signed-out' : 'error' }),
-    )
-    return () => {
-      cancelled = true
-    }
+    loadAccount({ verify: true })
   }, [])
 
-  const signedIn = useCallback((me: Me) => setState({ kind: 'signed-in', me }), [])
-
-  async function signOut() {
-    await api.signOut()
+  async function handleSignOut() {
+    await signOut()
     loadGoogle().then((google) => google.id.disableAutoSelect(), () => {})
-    setState({ kind: 'signed-out' })
   }
 
   return (
@@ -53,7 +41,7 @@ export function AccountPage() {
             <dt>Your votes count from</dt>
             <dd>{dateTime.format(new Date(state.me.liveAt))}</dd>
           </dl>
-          <button type="button" className="secondary-button" onClick={signOut}>
+          <button type="button" className="secondary-button" onClick={handleSignOut}>
             Sign out
           </button>
         </>

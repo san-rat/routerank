@@ -2,7 +2,7 @@ import { createReadStream, existsSync, statSync } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { resolve } from 'node:path'
 import react from '@vitejs/plugin-react'
-import { loadEnv, type Plugin } from 'vite'
+import { type HtmlTagDescriptor, loadEnv, type Plugin } from 'vite'
 import { defineConfig } from 'vitest/config'
 
 // Local only (dev server and `vite preview`): serve data/downloads/*.pmtiles at
@@ -37,6 +37,34 @@ function localTiles(): Plugin {
   }
 }
 
+// Production only: shorten the map's request chain (page → app JS → map JS → tiles).
+// - preconnect to the tile and glyph hosts so their TLS handshakes overlap the JS downloads;
+// - on pages that show a map (same rule as AppShell: always on desktop, map routes on mobile),
+//   start fetching the MapView chunk alongside the app JS. Other pages still skip MapLibre.
+function fasterMap(tilesUrl: string | undefined): Plugin {
+  return {
+    name: 'faster-map',
+    apply: 'build',
+    transformIndexHtml(_html, ctx) {
+      const tags: HtmlTagDescriptor[] = []
+      for (const origin of new Set([tilesUrl && /^https?:/.test(tilesUrl) ? new URL(tilesUrl).origin : undefined, 'https://protomaps.github.io'])) {
+        if (origin) tags.push({ tag: 'link', attrs: { rel: 'preconnect', href: origin, crossorigin: '' }, injectTo: 'head' })
+      }
+      const mapChunk = Object.values(ctx.bundle ?? {}).find((c) => c.type === 'chunk' && c.name === 'MapView')
+      if (mapChunk) {
+        tags.push({
+          tag: 'script',
+          children:
+            `if(matchMedia('(min-width: 900px)').matches||!/^\\/(leaderboard|me|add)|^\\/(how-it-works|privacy)$/.test(location.pathname)){` +
+            `var l=document.createElement('link');l.rel='modulepreload';l.href='/${mapChunk.fileName}';document.head.appendChild(l)}`,
+          injectTo: 'head',
+        })
+      }
+      return tags
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ command, mode }) => {
   if (command === 'build' && mode !== 'test' && !loadEnv(mode, process.cwd()).VITE_TILES_URL) {
@@ -52,7 +80,7 @@ export default defineConfig(({ command, mode }) => {
     },
   }
   return {
-    plugins: [react(), localTiles()],
+    plugins: [react(), localTiles(), fasterMap(loadEnv(mode, process.cwd()).VITE_TILES_URL)],
     server: { proxy: apiProxy },
     preview: { proxy: apiProxy },
     test: {

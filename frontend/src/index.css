@@ -359,6 +359,22 @@ a {
   font-weight: 700;
 }
 
+.sign-in.signed-in {
+  padding: 5px 14px 5px 5px;
+}
+
+.sign-in .avatar {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .tabs {
   display: flex;
   padding: 0 8px;
