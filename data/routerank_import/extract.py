@@ -12,6 +12,7 @@ import osmium
 
 MAIN_ROADS = {"trunk", "primary", "secondary"}
 LINK_ROADS = {f"{c}_link" for c in MAIN_ROADS}
+PLACE_KINDS = ("city", "town", "suburb", "village")
 
 
 @dataclass(frozen=True)
@@ -33,6 +34,15 @@ class Province:
     iso_code: str
     wkb_hex: str
     bbox: tuple[float, float, float, float]  # min lon, min lat, max lon, max lat
+
+
+@dataclass(frozen=True)
+class Place:
+    osm_id: int
+    kind: str
+    name: str
+    lon: float
+    lat: float
 
 
 def road_class_of(highway: str | None) -> tuple[str, bool] | None:
@@ -108,6 +118,29 @@ def split_ways(path: str) -> tuple[list[Piece], dict[str, int]]:
         stats["ways"] += 1
     stats["pieces"] = len(pieces)
     return pieces, dict(stats)
+
+
+def english_name(tags) -> str | None:
+    """name:en, or name when it has no Sinhala or Tamil letters (the site is English only)."""
+    name = (tags.get("name:en") or "").strip()
+    if not name:
+        name = (tags.get("name") or "").strip()
+        if any(0x0B80 <= ord(ch) <= 0x0BFF or 0x0D80 <= ord(ch) <= 0x0DFF for ch in name):  # Tamil, Sinhala
+            return None
+    return name or None
+
+
+def places(path: str) -> list[Place]:
+    """City, town, suburb and village points with an English name."""
+    found = []
+    for node in osmium.FileProcessor(path, osmium.osm.NODE):
+        kind = node.tags.get("place")
+        if kind not in PLACE_KINDS or not node.location.valid():
+            continue
+        name = english_name(node.tags)
+        if name:
+            found.append(Place(node.id, kind, name, node.location.lon, node.location.lat))
+    return found
 
 
 def provinces(path: str) -> list[Province]:

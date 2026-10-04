@@ -4,7 +4,8 @@ import psycopg
 
 from routerank_import.__main__ import load
 from routerank_import.checks import largest_component_share, run_checks
-from routerank_import.extract import parse_oneway, parse_oneway_bus, road_class_of, split_ways
+from routerank_import.extract import (english_name, parse_oneway, parse_oneway_bus, places, road_class_of,
+                                      split_ways)
 
 from .conftest import FIXTURE
 
@@ -23,6 +24,21 @@ def test_oneway_parsing():
     assert parse_oneway({"junction": "roundabout"}) == 1
     assert parse_oneway_bus({"oneway:bus": "no"}) == 0
     assert parse_oneway_bus({}) is None
+
+
+def test_english_name():
+    assert english_name({"name": "කොළඹ", "name:en": "Colombo"}) == "Colombo"
+    assert english_name({"name": "Pettah"}) == "Pettah"
+    assert english_name({"name": "கொழும்பு"}) is None  # Tamil only: no English name
+    assert english_name({"name": "කොළඹ"}) is None  # Sinhala only
+    assert english_name({}) is None
+
+
+def test_fixture_has_place_names():
+    found = places(str(FIXTURE))
+    assert found
+    assert {p.kind for p in found} <= {"city", "town", "suburb", "village"}
+    assert all(p.name for p in found)
 
 
 def test_largest_component_share():
@@ -56,3 +72,5 @@ def test_colombo_fixture_imports_and_passes_checks(database_url):
         one_way = conn.execute("SELECT count(*) FROM road_segment WHERE import_run_id = %s AND oneway <> 0",
                                (run_id,)).fetchone()[0]
         assert one_way > 0  # central Colombo has one-way streets
+        named = conn.execute("SELECT count(*) FROM place WHERE import_run_id = %s", (run_id,)).fetchone()[0]
+        assert named == len(places(str(FIXTURE)))

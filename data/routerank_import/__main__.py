@@ -18,15 +18,16 @@ import osmium
 import psycopg
 
 from .checks import run_checks
-from .extract import provinces, split_ways
-from .load import build_segments, stage, start_run
+from .extract import places, provinces, split_ways
+from .load import build_segments, load_places, stage, start_run
 
 ROAD_FILTER = "w/highway=trunk,trunk_link,primary,primary_link,secondary,secondary_link"
 BOUNDARY_FILTER = "r/boundary=administrative"
+PLACE_FILTER = "n/place=city,town,suburb,village"
 
 
 def filter_extract(src: str, dst: str) -> None:
-    subprocess.run(["osmium", "tags-filter", src, ROAD_FILTER, BOUNDARY_FILTER,
+    subprocess.run(["osmium", "tags-filter", src, ROAD_FILTER, BOUNDARY_FILTER, PLACE_FILTER,
                     "-o", dst, "--overwrite"], check=True)
 
 
@@ -51,7 +52,8 @@ def load(path: str, source_url: str, extract_date: datetime | None, expected_pro
         run_id = start_run(conn, extract_date, source_url)
         stage(conn, pieces, shapes)
         count = build_segments(conn, run_id)
-        print(f"import_run {run_id}: {count:,} segments (extract {extract_date.isoformat()})")
+        named = load_places(conn, run_id, places(path))
+        print(f"import_run {run_id}: {count:,} segments, {named:,} places (extract {extract_date.isoformat()})")
         report = run_checks(conn, run_id, expected_provinces)
         print("\n".join(report.lines))
         if report.failures:
@@ -75,7 +77,7 @@ def write_provinces(path: str, out: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(prog="routerank_import")
     sub = parser.add_subparsers(dest="command", required=True)
-    f = sub.add_parser("filter", help="keep main roads and admin boundaries")
+    f = sub.add_parser("filter", help="keep main roads, admin boundaries and place points")
     f.add_argument("src")
     f.add_argument("dst")
     ld = sub.add_parser("load", help="split roads into segments, load them and run the checks")

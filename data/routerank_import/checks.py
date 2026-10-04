@@ -78,6 +78,12 @@ def run_checks(conn: psycopg.Connection, run_id: int, expected_provinces: int | 
             WHERE import_run_id = %(run)s GROUP BY 1 ORDER BY 2 DESC"""):
         r.info(f"  {province:<16} {km:>9,.1f} km  {n:>7,} segments")
 
+    r.info("\nplaces by kind:")
+    kinds = q("SELECT kind, count(*) FROM place WHERE import_run_id = %(run)s GROUP BY 1 ORDER BY 2 DESC")
+    for kind, n in kinds:
+        r.info(f"  {kind:<16} {n:>7,}")
+    r.check(sum(n for _, n in kinds) > 0, "place names loaded (they name routes and power search)")
+
     rows = q("""SELECT from_node, to_node, sum(length_m) FROM road_segment
                 WHERE import_run_id = %(run)s GROUP BY 1, 2""")
     share = largest_component_share(rows)
