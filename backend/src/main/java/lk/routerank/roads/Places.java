@@ -25,7 +25,10 @@ class Places {
 			.orElse(null);
 	}
 
-	/** Names starting with the text (case-insensitive), biggest places first: cities, towns, suburbs, quarters, neighbourhoods, villages. */
+	/**
+	 * Names starting with the text (case-insensitive), biggest places first: cities, towns, suburbs, quarters,
+	 * neighbourhoods, villages. Aliases match too ("Pitakotuwa" finds Pettah); results show the main name.
+	 */
 	List<Place> search(long importRunId, String prefix, int limit) {
 		String escaped = prefix.strip().toLowerCase().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
 		if (escaped.isEmpty()) {
@@ -33,7 +36,8 @@ class Places {
 		}
 		return jdbc.sql("""
 				SELECT name, kind, ST_Y(geom) AS lat, ST_X(geom) AS lon FROM place
-				WHERE import_run_id = :run AND lower(name) LIKE :prefix ESCAPE '\\'
+				WHERE import_run_id = :run AND (lower(name) LIKE :prefix ESCAPE '\\'
+				      OR EXISTS (SELECT 1 FROM unnest(aliases) a WHERE lower(a) LIKE :prefix ESCAPE '\\'))
 				ORDER BY array_position(ARRAY['city', 'town', 'suburb', 'quarter', 'neighbourhood', 'village'], kind), name
 				LIMIT :limit""")
 			.param("run", importRunId)

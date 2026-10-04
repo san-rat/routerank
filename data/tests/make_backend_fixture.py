@@ -24,7 +24,7 @@ TABLES = {
     "import_run": "id, extract_date, source_url, started_at, finished_at, segment_count",
     "road_segment": "id, import_run_id, osm_way_id, from_node, to_node, part, road_class, is_link, oneway, "
                     "oneway_bus, name, ref, province, geom, length_m",
-    "place": "id, import_run_id, osm_id, kind, name, geom",
+    "place": "id, import_run_id, osm_id, kind, name, aliases, geom",
 }
 
 

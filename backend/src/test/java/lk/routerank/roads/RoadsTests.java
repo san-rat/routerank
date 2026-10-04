@@ -108,6 +108,9 @@ class RoadsTests {
 	void searchesPlaceNamesByPrefix() {
 		assertThat(roads.searchPlaces("koll", 8)).extracting(Place::name).contains("Kollupitiya");
 		assertThat(roads.searchPlaces("BOR", 8)).extracting(Place::name).contains("Borella");
+		// From data/places-extra.csv: not in OSM, found by its name and its Sinhala name
+		assertThat(roads.searchPlaces("pett", 8)).extracting(Place::name).containsExactly("Pettah");
+		assertThat(roads.searchPlaces("Pitakotu", 8)).extracting(Place::name).containsExactly("Pettah");
 		assertThat(roads.searchPlaces("%", 8)).isEmpty(); // LIKE wildcards are matched literally
 		assertThat(roads.searchPlaces("  ", 8)).isEmpty();
 	}

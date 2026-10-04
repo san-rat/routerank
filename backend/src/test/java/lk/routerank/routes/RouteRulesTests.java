@@ -108,7 +108,7 @@ class RouteRulesTests {
 		RouteView saved = routes.create(user, input);
 
 		assertThat(saved.slot()).isEqualTo(1);
-		assertThat(saved.name()).isEqualTo("Fort → Borella");
+		assertThat(saved.name()).isEqualTo("Pettah → Borella");
 		assertThat(saved.waypoints()).containsExactly(via);
 		assertThat(saved.lengthOutM()).isPositive();
 		assertThat(saved.lengthBackM()).isPositive();
@@ -200,7 +200,7 @@ class RouteRulesTests {
 		assertThat(mine.slots().get(1).lockedUntil()).isNull();
 
 		clock.advance(Duration.ofHours(24));
-		assertThat(routes.update(user, saved.id(), pettahBorella).name()).isEqualTo("Fort → Borella");
+		assertThat(routes.update(user, saved.id(), pettahBorella).name()).isEqualTo("Pettah → Borella");
 	}
 
 	@Test
