@@ -21,7 +21,7 @@ import tools.jackson.databind.json.JsonMapper;
  * <ul>
  * <li>{@code heat/<province>-<hash>.json}: GeoJSON, one feature per stretch ({@code s} slug, {@code p} points),
  * busiest last so they draw on top</li>
- * <li>{@code details/<province>-<hash>.json}: every stretch in the province by slug</li>
+ * <li>{@code details/<province>-<hash>.json}: every stretch in the province by slug, and its whole roads</li>
  * <li>{@code leaderboard/<overall|province>-<page>-<hash>.json}: ranked stretches, 20 a page</li>
  * <li>{@code slugs-<hash>.json}: every link slug to its stretch's own slug and province</li>
  * <li>{@code buses-<hash>.json}: the active bus routes, each with its most-wanted extension</li>
@@ -69,13 +69,25 @@ final class Publication {
 	 * @param ends its two ends as {@code [lon, lat]} ("Vote for this stretch" starts a route between them)
 	 * @param bbox {@code [west, south, east, north]}
 	 * @param extendsBus the number of the bus route most of its points come from extensions of ("Extends 99")
+	 * @param along the whole road it is part of, a key in {@link Details#roads}, or null
 	 */
 	record Detail(String name, String road, String province, int points, int people, int[] votes, long lengthM,
 			Integer rankOverall, Integer rankProvince, double[][] ends, double[] bbox,
-			@JsonInclude(JsonInclude.Include.NON_NULL) String extendsBus) {
+			@JsonInclude(JsonInclude.Include.NON_NULL) String extendsBus,
+			@JsonInclude(JsonInclude.Include.NON_NULL) String along) {
 	}
 
-	record Details(String province, Map<String, Detail> stretches) {
+	/**
+	 * A whole road ({@link Roads}): two or more stretches joined end to end with the same road name. Display only.
+	 *
+	 * @param stretches their slugs, from the end nearer Colombo
+	 * @param lengthM their lengths added up
+	 */
+	record Road(String name, long lengthM, List<String> stretches, double[] bbox) {
+	}
+
+	/** @param roads whole roads by key, the slug of their first stretch */
+	record Details(String province, Map<String, Detail> stretches, Map<String, Road> roads) {
 	}
 
 	record Entry(int rank, String slug, String name, String province, int points, int people, long lengthM,
@@ -148,6 +160,17 @@ final class Publication {
 		List<String> overallPages = pages("overall", ranked, true, busNumbers, files, json);
 
 		Map<String, String> slugProvince = new LinkedHashMap<>();
+		Map<String, String> along = new LinkedHashMap<>();
+		Map<String, Map<String, Road>> roadsByProvince = new LinkedHashMap<>();
+		for (List<Stretch> road : Roads.group(stretches)) {
+			String key = road.get(0).slug();
+			road.forEach(s -> along.put(s.slug(), key));
+			roadsByProvince.computeIfAbsent(road.get(0).province(), k -> new LinkedHashMap<>())
+				.put(key, new Road(road.get(0).road(), Math.round(road.stream().mapToDouble(Stretch::lengthM).sum()),
+						road.stream().map(Stretch::slug).toList(),
+						bbox(road.stream().flatMap(s -> s.segments().stream()).map(ScoredSegment::line)
+							.toArray(double[][][]::new))));
+		}
 		for (String province : provinces) {
 			String slug = provinceSlug(province);
 			List<Stretch> here = stretches.stream().filter(s -> s.province().equals(province)).toList();
@@ -167,10 +190,11 @@ final class Publication {
 				.sorted(Comparator.comparing(Stretch::slug))
 				.forEach(s -> details.put(s.slug(), new Detail(s.name(), s.road(), province, s.points(), s.people(),
 						s.votes(), Math.round(s.lengthM()), s.rankOverall(), s.rankProvince(), s.ends(), bbox(s),
-						number(s, busNumbers))));
+						number(s, busNumbers), along.get(s.slug()))));
 			String heat = put(files, "heat/" + slug, json.writeValueAsBytes(new FeatureCollection("FeatureCollection",
 					features)));
-			String detailsKey = put(files, "details/" + slug, json.writeValueAsBytes(new Details(province, details)));
+			String detailsKey = put(files, "details/" + slug, json.writeValueAsBytes(new Details(province, details,
+					roadsByProvince.getOrDefault(province, Map.of()))));
 			List<Stretch> rankedHere = here.stream()
 				.filter(Stretch::ranked)
 				.sorted(Comparator.comparing(Stretch::rankProvince))

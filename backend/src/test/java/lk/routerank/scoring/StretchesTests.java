@@ -307,6 +307,41 @@ class StretchesTests {
 		assertThat(Publication.bands(List.of())).isEmpty();
 	}
 
+	/** A stretch of one segment from x0 to x1 (as in {@link #seg}), its end nearer Colombo first. */
+	static Stretch onRoad(String slug, String road, String province, int x0, int x1, int points) {
+		ScoredSegment s = seg(x0, x0, x1, points, 1, 1000, province, false, road, null);
+		double[][] ends = { s.line()[1], s.line()[0] }; // west of the Colombo point here, so the higher x is nearer
+		return new Stretch(slug, slug, road, province, List.of(s), 1000, points, 1, new int[] { 1, 0, 0 }, ends,
+				false, null, null, null);
+	}
+
+	@Test
+	void wholeRoadsJoinStretchesEndToEndWithTheSameRoadName() {
+		// Avissawella Road east of 79.80: a and b meet at x = 2, c carries on as another road, d is further out
+		Stretch a = onRoad("a", "Avissawella Road", "Western", 1, 2, 3);
+		Stretch b = onRoad("b", "Avissawella Road", "Western", 2, 4, 3);
+		Stretch c = onRoad("c", "Low Level Road", "Western", 4, 5, 3);
+		Stretch d = onRoad("d", "Avissawella Road", "Western", 7, 8, 3);
+		Stretch other = onRoad("e", "Avissawella Road", "Sabaragamuwa", 8, 9, 3); // meets d across the border
+		assertThat(Roads.group(List.of(c, b, d, a, other)))
+			.extracting(road -> road.stream().map(Stretch::slug).toList())
+			.containsExactly(List.of("b", "a")); // b's end is nearer Colombo (79.8428)
+
+		JsonMapper json = JsonMapper.builder().build();
+		Publication p = Publication.build(List.of(a, b, c), Map.of("a", "a", "b", "b", "c", "c"), List.of("Western"),
+				Map.of(), List.of(), Map.of(), Instant.parse("2026-10-05T10:00:00Z"), json);
+		String key = json.readTree(p.manifest()).get("provinces").get("western").get("details").asString();
+		JsonNode details = json.readTree(p.files().get(key));
+		JsonNode road = details.get("roads").get("b");
+		assertThat(road.get("name").asString()).isEqualTo("Avissawella Road");
+		assertThat(road.get("lengthM").asInt()).isEqualTo(2000);
+		assertThat(road.get("stretches").values()).extracting(JsonNode::asString).containsExactly("b", "a");
+		assertThat(details.get("stretches").get("a").get("along").asString()).isEqualTo("b");
+		assertThat(details.get("stretches").get("c").has("along")).isFalse();
+		// Display only: each stretch keeps its own points
+		assertThat(details.get("stretches").get("a").get("points").asInt()).isEqualTo(3);
+	}
+
 	@Test
 	void provinceSlugsMatchTheSite() {
 		assertThat(Publication.provinceSlug("North Western")).isEqualTo("north-western");
