@@ -4,6 +4,8 @@ import { HEAT, type Heat } from './data'
 const SOURCE = 'heat'
 const LINES = 'heat-lines'
 const SELECTED = 'heat-selected'
+/** The rest of the selected stretch's whole road */
+const ROAD = 'heat-road'
 /** Invisible and wide: thin lines are hard to tap on a phone */
 const HIT = 'heat-hit'
 const EMPTY: Heat = { type: 'FeatureCollection', features: [] }
@@ -39,12 +41,13 @@ export interface HeatHandlers {
 
 /**
  * The vote heatmap: one province's stretches drawn on the road, pale mint to dark teal by points, under the
- * map labels. With a stretch selected, the others fade and it is drawn thicker (W04).
+ * map labels. With a stretch selected, the others fade and it is drawn thicker, the rest of its whole road
+ * a little less so (W04).
  */
 export function createHeatLayer(map: MapLibreMap, handlers: HeatHandlers) {
   let removed = false
   let popup: Popup | null = null
-  let latest: { heat: Heat | null; bands: number[]; selected: string | null } | null = null
+  let latest: { heat: Heat | null; bands: number[]; selected: string | null; road: string[] } | null = null
 
   const onClick = (e: MapLayerMouseEvent) => {
     const slug = e.features?.[0]?.properties?.s
@@ -89,6 +92,20 @@ export function createHeatLayer(map: MapLibreMap, handlers: HeatHandlers) {
     )
     map.addLayer(
       {
+        id: ROAD,
+        type: 'line',
+        source: SOURCE,
+        filter: ['in', ['get', 's'], ['literal', []]],
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': HEAT[3],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 7, 3, 11, 5, 15, 9],
+        },
+      },
+      beforeId,
+    )
+    map.addLayer(
+      {
         id: SELECTED,
         type: 'line',
         source: SOURCE,
@@ -116,17 +133,19 @@ export function createHeatLayer(map: MapLibreMap, handlers: HeatHandlers) {
   })
 
   return {
-    update(nextHeat: Heat | null, nextBands: number[], nextSelected: string | null) {
+    /** road: the slugs of the selected stretch's whole road, drawn with it (W04) */
+    update(nextHeat: Heat | null, nextBands: number[], nextSelected: string | null, nextRoad: string[] = []) {
       // A run that waited for the style uses the newest state, never an older one
-      latest = { heat: nextHeat, bands: nextBands, selected: nextSelected }
+      latest = { heat: nextHeat, bands: nextBands, selected: nextSelected, road: nextRoad }
       whenStyleReady(map, () => {
         if (removed || !latest) return
-        const { heat, bands, selected } = latest
+        const { heat, bands, selected, road } = latest
         ;(map.getSource(SOURCE) as GeoJSONSource | undefined)?.setData(heat ?? EMPTY)
         if (!map.getLayer(LINES)) return
         map.setPaintProperty(LINES, 'line-color', colour(bands))
         map.setPaintProperty(LINES, 'line-opacity', selected ? 0.35 : 1)
         map.setFilter(SELECTED, ['==', ['get', 's'], selected ?? ''])
+        map.setFilter(ROAD, ['in', ['get', 's'], ['literal', selected ? road : []]])
       })
     },
     remove() {
@@ -138,6 +157,7 @@ export function createHeatLayer(map: MapLibreMap, handlers: HeatHandlers) {
       if (!map.getStyle()) return
       if (map.getLayer(HIT)) map.removeLayer(HIT)
       if (map.getLayer(SELECTED)) map.removeLayer(SELECTED)
+      if (map.getLayer(ROAD)) map.removeLayer(ROAD)
       if (map.getLayer(LINES)) map.removeLayer(LINES)
       if (map.getSource(SOURCE)) map.removeSource(SOURCE)
     },
