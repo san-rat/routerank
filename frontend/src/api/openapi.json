@@ -91,6 +91,36 @@
         }
       }
     },
+    "/api/admin/bus-routes/{id}" : {
+      "put" : {
+        "tags" : [ "bus-routes-admin-controller" ],
+        "operationId" : "redraw",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BusRouteInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
     "/api/routes" : {
       "get" : {
         "tags" : [ "routes-controller" ],
@@ -198,6 +228,16 @@
       "post" : {
         "tags" : [ "admin-controller" ],
         "operationId" : "runScoring",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Reason"
+              }
+            }
+          },
+          "required" : true
+        },
         "responses" : {
           "200" : {
             "description" : "OK",
@@ -208,6 +248,317 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/admin/routes/{id}/restore" : {
+      "post" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "restoreRoute",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Reason"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        }
+      }
+    },
+    "/api/admin/routes/{id}/remove" : {
+      "post" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "removeRoute",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Reason"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        }
+      }
+    },
+    "/api/admin/clusters/remove" : {
+      "post" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "removeCluster",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ClusterAction"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Resolved"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/clusters/release" : {
+      "post" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "releaseCluster",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ClusterAction"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Resolved"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/bus-routes" : {
+      "get" : {
+        "tags" : [ "bus-routes-admin-controller" ],
+        "operationId" : "list_1",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/BusRouteView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "bus-routes-admin-controller" ],
+        "operationId" : "add",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BusRouteInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Created"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/bus-routes/{id}/retire" : {
+      "post" : {
+        "tags" : [ "bus-routes-admin-controller" ],
+        "operationId" : "retire",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Reason"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/api/admin/bus-routes/draw" : {
+      "post" : {
+        "tags" : [ "bus-routes-admin-controller" ],
+        "operationId" : "draw",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BusRouteInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DrawingView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/accounts/{id}/unban" : {
+      "post" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "unban",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Reason"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        }
+      }
+    },
+    "/api/admin/accounts/{id}/release" : {
+      "post" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "releaseAccount",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Reason"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        }
+      }
+    },
+    "/api/admin/accounts/{id}/ban" : {
+      "post" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "ban",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Reason"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK"
           }
         }
       }
@@ -281,6 +632,152 @@
           }
         }
       }
+    },
+    "/api/admin/session" : {
+      "get" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "session",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Session"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/queue" : {
+      "get" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "queue",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/ClusterView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/held" : {
+      "get" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "held",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AccountView"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/audit" : {
+      "get" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "auditLog",
+        "parameters" : [ {
+          "name" : "before",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/Entry"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/accounts" : {
+      "get" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "findAccounts",
+        "parameters" : [ {
+          "name" : "q",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/AccountRow"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/accounts/{id}" : {
+      "get" : {
+        "tags" : [ "admin-controller" ],
+        "operationId" : "account",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AccountDetail"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components" : {
@@ -328,9 +825,40 @@
           "routeId" : {
             "type" : "integer",
             "format" : "int64"
+          },
+          "extend" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "turnstile" : {
+            "type" : "string",
+            "maxLength" : 2048,
+            "minLength" : 0
+          },
+          "device" : {
+            "type" : "string",
+            "maxLength" : 64,
+            "minLength" : 0
+          },
+          "website" : {
+            "type" : "string",
+            "maxLength" : 200,
+            "minLength" : 0
           }
         },
         "required" : [ "end", "start", "waypoints" ]
+      },
+      "BusRef" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "number" : {
+            "type" : "string"
+          }
+        }
       },
       "Busiest" : {
         "type" : "object",
@@ -419,6 +947,9 @@
           },
           "busiest" : {
             "$ref" : "#/components/schemas/Busiest"
+          },
+          "extendsBus" : {
+            "$ref" : "#/components/schemas/BusRef"
           }
         },
         "required" : [ "back", "createdAt", "end", "id", "lengthBackM", "lengthOutM", "name", "out", "slot", "start", "updatedAt", "waypoints" ]
@@ -492,6 +1023,94 @@
         },
         "required" : [ "slot" ]
       },
+      "BusRouteInput" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "number" : {
+            "type" : "string",
+            "maxLength" : 12,
+            "minLength" : 0,
+            "pattern" : "[0-9A-Za-z/ -]*"
+          },
+          "startName" : {
+            "type" : "string",
+            "maxLength" : 60,
+            "minLength" : 0
+          },
+          "endName" : {
+            "type" : "string",
+            "maxLength" : 60,
+            "minLength" : 0
+          },
+          "start" : {
+            "$ref" : "#/components/schemas/LatLon"
+          },
+          "end" : {
+            "$ref" : "#/components/schemas/LatLon"
+          },
+          "waypoints" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/LatLon"
+            },
+            "maxItems" : 25,
+            "minItems" : 0
+          },
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "end", "start", "waypoints" ]
+      },
+      "BusCheck" : {
+        "type" : "object",
+        "properties" : {
+          "busRouteId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "number" : {
+            "type" : "string"
+          },
+          "busName" : {
+            "type" : "string"
+          },
+          "busLengthM" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "newLengthM" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "totalM" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "limitM" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "newEnd" : {
+            "type" : "string"
+          },
+          "problems" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
       "Preview" : {
         "type" : "object",
         "properties" : {
@@ -556,15 +1175,19 @@
             "items" : {
               "$ref" : "#/components/schemas/Problem"
             }
+          },
+          "bus" : {
+            "$ref" : "#/components/schemas/BusCheck"
           }
-        }
+        },
+        "required" : [ "back", "backLeaves", "backVia", "lengthBackM", "lengthOutM", "name", "out", "points", "problems" ]
       },
       "Problem" : {
         "type" : "object",
         "properties" : {
           "code" : {
             "type" : "string",
-            "enum" : [ "SIDE_ROAD", "NO_ROAD_NEARBY", "NO_ROUTE", "NO_WAY_BACK", "TOO_LONG", "OVERLAP", "SLOT_LOCKED", "SLOTS_FULL" ]
+            "enum" : [ "SIDE_ROAD", "NO_ROAD_NEARBY", "NO_ROUTE", "NO_WAY_BACK", "TOO_LONG", "OVERLAP", "SLOT_LOCKED", "SLOTS_FULL", "NOT_AN_EXTENSION", "EXTENSION_TOO_LONG" ]
           },
           "point" : {
             "type" : "string"
@@ -604,6 +1227,16 @@
           "credential" : {
             "type" : "string",
             "minLength" : 1
+          },
+          "turnstile" : {
+            "type" : "string",
+            "maxLength" : 2048,
+            "minLength" : 0
+          },
+          "device" : {
+            "type" : "string",
+            "maxLength" : 64,
+            "minLength" : 0
           }
         },
         "required" : [ "credential" ]
@@ -627,6 +1260,17 @@
             "format" : "date-time"
           }
         }
+      },
+      "Reason" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "reason" ]
       },
       "Run" : {
         "type" : "object",
@@ -663,6 +1307,107 @@
           }
         }
       },
+      "ClusterAction" : {
+        "type" : "object",
+        "properties" : {
+          "cluster" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "reason" : {
+            "type" : "string",
+            "maxLength" : 500,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "cluster", "reason" ]
+      },
+      "Resolved" : {
+        "type" : "object",
+        "properties" : {
+          "users" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          },
+          "removedRoutes" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          }
+        }
+      },
+      "Created" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "DrawingView" : {
+        "type" : "object",
+        "properties" : {
+          "points" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/LatLon"
+            }
+          },
+          "out" : {
+            "type" : "array",
+            "items" : {
+              "type" : "array",
+              "items" : {
+                "type" : "number",
+                "format" : "double"
+              }
+            }
+          },
+          "back" : {
+            "type" : "array",
+            "items" : {
+              "type" : "array",
+              "items" : {
+                "type" : "number",
+                "format" : "double"
+              }
+            }
+          },
+          "lengthOutM" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "lengthBackM" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "startName" : {
+            "type" : "string"
+          },
+          "endName" : {
+            "type" : "string"
+          },
+          "towns" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "problems" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
       "Place" : {
         "type" : "object",
         "properties" : {
@@ -687,6 +1432,290 @@
         "properties" : {
           "nonce" : {
             "type" : "string"
+          }
+        }
+      },
+      "Session" : {
+        "type" : "object",
+        "properties" : {
+          "adminId" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "AccountView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "liveAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "heldAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "bannedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "trustScore" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "reasons" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "routes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/RouteSummary"
+            }
+          }
+        }
+      },
+      "ClusterView" : {
+        "type" : "object",
+        "properties" : {
+          "key" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "flaggedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "score" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "accounts" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AccountView"
+            }
+          }
+        }
+      },
+      "RouteSummary" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "userId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "slot" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "busNumber" : {
+            "type" : "string"
+          },
+          "lengthM" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "removedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "BusRouteView" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "number" : {
+            "type" : "string"
+          },
+          "startName" : {
+            "type" : "string"
+          },
+          "endName" : {
+            "type" : "string"
+          },
+          "start" : {
+            "$ref" : "#/components/schemas/LatLon"
+          },
+          "end" : {
+            "$ref" : "#/components/schemas/LatLon"
+          },
+          "waypoints" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/LatLon"
+            }
+          },
+          "out" : {
+            "type" : "array",
+            "items" : {
+              "type" : "array",
+              "items" : {
+                "type" : "number",
+                "format" : "double"
+              }
+            }
+          },
+          "back" : {
+            "type" : "array",
+            "items" : {
+              "type" : "array",
+              "items" : {
+                "type" : "number",
+                "format" : "double"
+              }
+            }
+          },
+          "lengthOutM" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "lengthBackM" : {
+            "type" : "number",
+            "format" : "double"
+          },
+          "towns" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "retiredAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "extensions" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "Entry" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "actorId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "actorEmail" : {
+            "type" : "string"
+          },
+          "action" : {
+            "type" : "string"
+          },
+          "target" : {
+            "type" : "string"
+          },
+          "before" : {
+            "type" : "string"
+          },
+          "after" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "at" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "AccountRow" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "role" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "liveAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "heldAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "bannedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "trustScore" : {
+            "type" : "number",
+            "format" : "double"
+          }
+        }
+      },
+      "AccountDetail" : {
+        "type" : "object",
+        "properties" : {
+          "account" : {
+            "$ref" : "#/components/schemas/AccountRow"
+          },
+          "routes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/RouteSummary"
+            }
           }
         }
       }

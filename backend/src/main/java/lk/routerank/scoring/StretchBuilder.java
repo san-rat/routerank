@@ -49,12 +49,13 @@ final class StretchBuilder {
 	 * @param lengthM length of road, each dual carriageway counted once
 	 * @param votes #1, #2 and #3 routes that count for it ({@link Coverage}); none until counted
 	 * @param people distinct users behind those routes
+	 * @param extendsBus the bus route most of its points come from extensions of ("Extends 99"), or null
 	 */
 	record Group(String province, List<ScoredSegment> segments, boolean linkOnly, double lengthM, int[] votes,
-			int people) {
+			int people, Long extendsBus) {
 
 		Group(String province, List<ScoredSegment> segments, boolean linkOnly, double lengthM) {
-			this(province, segments, linkOnly, lengthM, new int[3], 0);
+			this(province, segments, linkOnly, lengthM, new int[3], 0, null);
 		}
 
 		/** 3 / 2 / 1 for each #1 / #2 / #3 route that counts, so the breakdown adds up exactly. */
@@ -63,7 +64,11 @@ final class StretchBuilder {
 		}
 
 		Group withVotes(int[] votes, int people) {
-			return new Group(province, segments, linkOnly, lengthM, votes, people);
+			return withVotes(votes, people, null);
+		}
+
+		Group withVotes(int[] votes, int people, Long extendsBus) {
+			return new Group(province, segments, linkOnly, lengthM, votes, people, extendsBus);
 		}
 
 		/** The segment a new stretch link is anchored to: its highest-scoring one (lowest ID on a tie). */

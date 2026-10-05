@@ -36,6 +36,14 @@ class Accounts {
 			.optional();
 	}
 
+	/** Whether the account has the admin role (set by hand in the database) and isn't banned. */
+	boolean isAdmin(long id) {
+		return jdbc.sql("SELECT count(*) FROM app_user WHERE id = :id AND role = 'admin' AND banned_at IS NULL")
+			.param("id", id)
+			.query(Integer.class)
+			.single() == 1;
+	}
+
 	record Account(long id, String email, Instant createdAt, Instant liveAt, Instant bannedAt) {
 
 		boolean banned() {

@@ -33,6 +33,8 @@ export interface Manifest {
   overall: { ranked: number; pages: string[] }
   provinces: Record<string, ProvinceEntry>
   slugs: string
+  /** The bus routes file; absent in files published before Phase 6 */
+  buses?: string
 }
 
 export interface Detail {
@@ -50,6 +52,8 @@ export interface Detail {
   /** [lon, lat] of its two ends, the one nearer Colombo first */
   ends: [[number, number], [number, number]]
   bbox: [number, number, number, number]
+  /** The bus route most of its points come from extensions of ("Extends 99") */
+  extendsBus?: string
 }
 
 export interface Entry {
@@ -62,6 +66,7 @@ export interface Entry {
   people: number
   lengthM: number
   bbox: [number, number, number, number]
+  extendsBus?: string
 }
 
 export interface Details {
@@ -72,6 +77,38 @@ export interface Details {
 export interface Page {
   page: number
   entries: Entry[]
+}
+
+/** A bus route's most-wanted extension: the stretch with the most points from extensions of it (W05) */
+export interface Wanted {
+  slug: string
+  name: string
+  /** Province slug */
+  province: string
+  points: number
+  rankProvince: number | null
+}
+
+/** An existing bus route (W05); lines are [lon, lat] pairs */
+export interface BusRoute {
+  number: string
+  name: string
+  startName: string
+  endName: string
+  start: [number, number]
+  end: [number, number]
+  /** Towns it passes, in order */
+  towns: string[]
+  lengthOutM: number
+  lengthBackM: number
+  out: [number, number][]
+  back: [number, number][]
+  bbox: [number, number, number, number]
+  wanted: Wanted | null
+}
+
+export interface Buses {
+  routes: BusRoute[]
 }
 
 /** Link slug to [the stretch's own slug, province slug] */

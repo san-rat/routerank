@@ -33,7 +33,7 @@ Adding routes needs the API with a routing graph and the same road import in its
 test-only stand-in for Google, from `backend/`, against the Compose database:
 
 ```bash
-SERVER_PORT=8090 SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/routerank SPRING_DATASOURCE_USERNAME=routerank SPRING_DATASOURCE_PASSWORD=routerank SPRING_FLYWAY_LOCATIONS=classpath:db/migration ROUTERANK_ROUTING_GRAPH_LOCATION=../data/downloads/graph-2026-10-01 ROUTERANK_ROUTING_OSM_FILE= ROUTERANK_AUTH_PROXY_SECRET=local-dev-proxy-secret ./gradlew bootTestRun
+SERVER_PORT=8090 SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/routerank SPRING_DATASOURCE_USERNAME=routerank SPRING_DATASOURCE_PASSWORD=routerank SPRING_FLYWAY_LOCATIONS=classpath:db/migration ROUTERANK_ROUTING_GRAPH_LOCATION=../data/downloads/graph-2026-10-01 ROUTERANK_ROUTING_OSM_FILE= ROUTERANK_AUTH_PROXY_SECRET=local-dev-proxy-secret ROUTERANK_TURNSTILE_SECRET= ROUTERANK_TURNSTILE_HOSTNAMES= ./gradlew bootTestRun
 ```
 
 Then, with `API_PROXY_TARGET=http://localhost:8090` in `.env.development.local`, sign in from the
@@ -47,16 +47,25 @@ await fetch('/api/auth/google', { method: 'POST', headers: { 'Content-Type': 'ap
 localStorage.setItem('routerank.signedIn', '1')
 ```
 
-`/api/auth/dev-token` exists only in that test launcher (`backend/src/test`), never in the built API.
+`/api/auth/dev-token` exists only in that test launcher (`backend/src/test`), never in the built API. The empty
+`ROUTERANK_TURNSTILE_SECRET` turns the bot check off locally (the tests use a stand-in for Cloudflare instead);
+`VITE_TURNSTILE_SITE_KEY` is unset in development for the same reason.
 
 ### Rankings locally
 
 The map's heatmap, the stretch pages and the leaderboards read the files the scoring job publishes, never the
 API. In production they are on R2 (`VITE_DATA_URL`, the `routerank-data` bucket's public address). Locally, add
-`ROUTERANK_SCORING_PUBLISH_DIRECTORY=../data/downloads/rankings` and `ROUTERANK_ADMIN_EMAILS=dev-user@example.com`
-to the API command above: the job then writes the files there, and the dev server serves them at `/rankings`
-(`VITE_DATA_URL=/rankings` in `.env.development`). The job runs at :00 and :30; to run it now, sign in as
-`dev-user` and `POST /api/admin/scoring/run`. New accounts' votes count only after 24 hours, as in production.
+`ROUTERANK_SCORING_PUBLISH_DIRECTORY=../data/downloads/rankings` to the API command above: the job then writes
+the files there, and the dev server serves them at `/rankings` (`VITE_DATA_URL=/rankings` in `.env.development`).
+The job runs at :00 and :30. To run it now, or to try the admin pages (`/admin`: review queue, bus routes, audit
+log), make the dev account an admin in the Compose database, sign in again (admin pages need a sign-in from the
+last 15 minutes) and use "Run scoring now":
+
+```bash
+docker compose exec db psql -U routerank -c "UPDATE app_user SET role = 'admin' WHERE google_sub = 'dev'"
+```
+
+New accounts' votes count only after 24 hours, as in production.
 
 ## The map file
 

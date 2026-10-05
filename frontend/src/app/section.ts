@@ -6,6 +6,7 @@ export type Section = 'map' | 'leaderboard' | 'routes'
 export function useSection(): Section {
   const { pathname } = useLocation()
   if (pathname.startsWith('/leaderboard') || pathname === '/how-it-works') return 'leaderboard'
-  if (pathname.startsWith('/me') || pathname.startsWith('/add') || pathname === '/privacy') return 'routes'
+  if (pathname.startsWith('/me') || pathname.startsWith('/add') || pathname === '/privacy' || pathname.startsWith('/admin'))
+    return 'routes'
   return 'map'
 }

@@ -44,7 +44,7 @@ class ScoreStore {
 
 	/**
 	 * Points and people per segment of the import: 3 / 2 / 1 from every route that is not removed or held, of an
-	 * account past its 24-hour delay and not banned. A route lists each segment once whichever direction uses
+	 * account past its 24-hour delay, not held and not banned. A route lists each segment once whichever direction uses
 	 * it, and only the scoring part of an extension counts.
 	 */
 	List<ScoredSegment> scoredSegments(long importRunId, Instant now) {
@@ -56,7 +56,7 @@ class ScoreStore {
 				    FROM route r
 				    JOIN app_user u ON u.id = r.user_id
 				    JOIN route_segment rs ON rs.route_id = r.id AND rs.scores
-				    WHERE r.removed_at IS NULL AND r.held_at IS NULL
+				    WHERE r.removed_at IS NULL AND r.held_at IS NULL AND u.held_at IS NULL
 				      AND u.banned_at IS NULL AND u.live_at <= :now
 				    GROUP BY rs.segment_id
 				)
@@ -83,11 +83,11 @@ class ScoreStore {
 	 */
 	void countedRoutes(Instant now, Consumer<Coverage.Route> each) {
 		jdbc.sql("""
-				SELECT r.user_id, r.slot, array_agg(rs.segment_id) AS segments
+				SELECT r.user_id, r.slot, r.bus_route_id, array_agg(rs.segment_id) AS segments
 				FROM route r
 				JOIN app_user u ON u.id = r.user_id
 				JOIN route_segment rs ON rs.route_id = r.id AND rs.scores
-				WHERE r.removed_at IS NULL AND r.held_at IS NULL
+				WHERE r.removed_at IS NULL AND r.held_at IS NULL AND u.held_at IS NULL
 				  AND u.banned_at IS NULL AND u.live_at <= :now
 				GROUP BY r.id
 				ORDER BY r.id""")
@@ -95,7 +95,7 @@ class ScoreStore {
 			.query((RowCallbackHandler) rs -> {
 				Long[] ids = (Long[]) rs.getArray("segments").getArray();
 				each.accept(new Coverage.Route(rs.getLong("user_id"), rs.getInt("slot"),
-						java.util.Arrays.stream(ids).mapToLong(Long::longValue).toArray()));
+						java.util.Arrays.stream(ids).mapToLong(Long::longValue).toArray(), (Long) rs.getObject("bus_route_id")));
 			});
 	}
 
@@ -150,13 +150,40 @@ class ScoreStore {
 				JOIN app_user u ON u.id = r.user_id
 				JOIN route_segment rs ON rs.route_id = r.id AND rs.scores
 				JOIN road_segment s ON s.id = rs.segment_id AND s.import_run_id = :run
-				WHERE r.removed_at IS NULL AND r.held_at IS NULL AND u.banned_at IS NULL AND u.live_at <= :now
+				WHERE r.removed_at IS NULL AND r.held_at IS NULL AND u.held_at IS NULL AND u.banned_at IS NULL AND u.live_at <= :now
 				GROUP BY s.province""")
 			.param("run", importRunId)
 			.param("now", java.sql.Timestamp.from(now))
 			.query((rs, n) -> people.put(rs.getString("province"), rs.getInt("people")))
 			.list();
 		return people;
+	}
+
+	/** The active bus routes for the map, their lines simplified to about 3 m. */
+	List<Publication.BusLine> busLines() {
+		return jdbc.sql("""
+				SELECT id, number, start_name, end_name, towns, length_out_m, length_back_m,
+				       ST_X(start_point) AS start_lon, ST_Y(start_point) AS start_lat,
+				       ST_X(end_point) AS end_lon, ST_Y(end_point) AS end_lat,
+				       ST_AsGeoJSON(ST_Simplify(geom_out, 0.00003), 5) AS out_line,
+				       ST_AsGeoJSON(ST_Simplify(geom_back, 0.00003), 5) AS back_line
+				FROM bus_route WHERE retired_at IS NULL ORDER BY number, id""")
+			.query((rs, n) -> new Publication.BusLine(rs.getLong("id"), rs.getString("number"), rs.getString("start_name"),
+					rs.getString("end_name"), new double[] { rs.getDouble("start_lon"), rs.getDouble("start_lat") },
+					new double[] { rs.getDouble("end_lon"), rs.getDouble("end_lat") },
+					java.util.Arrays.asList((String[]) rs.getArray("towns").getArray()), rs.getDouble("length_out_m"),
+					rs.getDouble("length_back_m"), coordinates(rs.getString("out_line")),
+					coordinates(rs.getString("back_line"))))
+			.list();
+	}
+
+	/** Every bus route's number, retired ones too: their extensions still count and keep the tag. */
+	Map<Long, String> busNumbers() {
+		Map<Long, String> numbers = new HashMap<>();
+		jdbc.sql("SELECT id, number FROM bus_route")
+			.query((rs, n) -> numbers.put(rs.getLong("id"), rs.getString("number")))
+			.list();
+		return numbers;
 	}
 
 	/** The nearest place name to each point (null where the import has no places), in the same order. */

@@ -7,11 +7,14 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import lk.routerank.busroutes.BusRoutes;
+import lk.routerank.busroutes.BusRoutes.Extension;
 import lk.routerank.roads.LatLon;
 import lk.routerank.roads.RoutePlan;
 import lk.routerank.roads.RoutePlan.SnappedPoint;
@@ -23,6 +26,8 @@ import lk.routerank.routes.RouteStore.NewRoute;
 import lk.routerank.routes.RouteStore.StoredRoute;
 import lk.routerank.routes.Slots.Lock;
 import lk.routerank.routes.Slots.Placement;
+import lk.routerank.routes.Views.BusCheck;
+import lk.routerank.routes.Views.BusRef;
 import lk.routerank.routes.Views.MyRoutes;
 import lk.routerank.routes.Views.Preview;
 import lk.routerank.routes.Views.RouteView;
@@ -60,12 +65,16 @@ class RouteService {
 
 	private final Stretches stretches;
 
-	RouteService(Roads roads, RouteStore store, TransactionTemplate tx, Clock clock, Stretches stretches) {
+	private final BusRoutes busRoutes;
+
+	RouteService(Roads roads, RouteStore store, TransactionTemplate tx, Clock clock, Stretches stretches,
+			BusRoutes busRoutes) {
 		this.roads = roads;
 		this.store = store;
 		this.tx = tx;
 		this.clock = clock;
 		this.stretches = stretches;
+		this.busRoutes = busRoutes;
 	}
 
 	MyRoutes list(long userId) {
@@ -73,12 +82,17 @@ class RouteService {
 		return myRoutes(userId, account, clock.instant());
 	}
 
+	/**
+	 * The route worked out from its points, with what would block saving it as a new route and, when it extends
+	 * a bus route, the Bus check (W18) with what would block saving it as an extension.
+	 */
 	Preview preview(long userId, RouteInput input) {
 		RoutePlan plan = roads.plan(input.points());
 		List<Problem> problems = new ArrayList<>(routeProblems(plan));
+		BusCheck bus = null;
 		if (problems.isEmpty()) {
-			store.overlaps(userId, plan.segmentIds(), input.routeId())
-				.forEach(o -> problems.add(Problem.overlap(o.id(), o.slot(), o.name())));
+			problems.addAll(overlaps(userId, plan.segmentIds(), input.routeId()));
+			bus = busRoutes.extensionFor(plan).map(e -> busCheck(userId, plan, e, input.routeId())).orElse(null);
 		}
 		List<LatLon> points = plan.points().stream()
 			.map(p -> p.snapped() != null ? p.snapped() : p.input())
@@ -90,7 +104,30 @@ class RouteService {
 				back == null ? List.of() : back.leaves().stream().map(Views::line).toList(),
 				back == null ? List.of() : back.leavesVia(), out == null ? 0 : out.lengthM(),
 				back == null ? 0 : back.lengthM(), out == null ? "" : roads.name(points.getFirst(), points.getLast()),
-				problems);
+				problems, bus);
+	}
+
+	private BusCheck busCheck(long userId, RoutePlan plan, Extension e, Long exceptRouteId) {
+		List<Problem> problems = new ArrayList<>(extensionProblems(e));
+		problems.addAll(overlaps(userId, scoringSegments(plan, e), exceptRouteId));
+		return new BusCheck(e.busRouteId(), e.number(), e.busName(), e.busLengthM(), e.newLengthM(), e.totalM(),
+				BusRoutes.MAX_EXTENDED_M, extendedName(plan, e), newEnd(plan, e), problems);
+	}
+
+	/**
+	 * A route saved by a bot that filled in the honeypot field: it gets a normal-looking reply, and nothing is
+	 * saved.
+	 */
+	RouteView unsaved(RouteInput input) {
+		RoutePlan plan = roads.plan(input.points());
+		List<LatLon> points = plan.points().stream().map(p -> p.snapped() != null ? p.snapped() : p.input()).toList();
+		List<LatLon> out = plan.out() == null ? points : plan.out().line();
+		List<LatLon> back = plan.back() == null ? out.reversed() : plan.back().line();
+		Instant now = clock.instant();
+		return new RouteView(0, input.slot() == null ? 1 : input.slot(), roads.name(points.getFirst(), points.getLast()),
+				points.getFirst(), points.getLast(), points.subList(1, points.size() - 1), Views.line(out), Views.line(back),
+				plan.out() == null ? 0 : plan.out().lengthM(), plan.back() == null ? 0 : plan.back().lengthM(), now, now,
+				null, null);
 	}
 
 	RouteView create(long userId, RouteInput input) {
@@ -98,17 +135,18 @@ class RouteService {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "slot is required");
 		}
 		RoutePlan plan = roads.plan(input.points());
+		Optional<Extension> extension = extension(input, plan);
 		return tx.execute(status -> {
 			lock(userId);
 			Instant now = clock.instant();
 			List<StoredRoute> routes = store.active(userId);
-			List<Problem> problems = problems(userId, plan, null);
+			List<Problem> problems = problems(userId, plan, input.extend(), extension, null);
 			Placement placement = place(routes, null, input.slot(), problems);
 			checkLocks(userId, placement, now, problems);
 			refuseIf(problems);
 
 			moveShifted(routes, placement, now);
-			long id = store.insert(userId, input.slot(), toStore(plan), now);
+			long id = store.insert(userId, input.slot(), toStore(plan, extension.orElse(null)), now);
 			startLocks(userId, placement, now);
 			return view(store.active(userId), id);
 		});
@@ -116,19 +154,20 @@ class RouteService {
 
 	RouteView update(long userId, long routeId, RouteInput input) {
 		RoutePlan plan = roads.plan(input.points());
+		Optional<Extension> extension = extension(input, plan);
 		return tx.execute(status -> {
 			lock(userId);
 			Instant now = clock.instant();
 			List<StoredRoute> routes = store.active(userId);
 			StoredRoute route = routes.stream().filter(r -> r.id() == routeId).findFirst().orElseThrow(RouteService::notFound);
 			int slot = input.slot() == null ? route.slot() : input.slot();
-			List<Problem> problems = problems(userId, plan, routeId);
+			List<Problem> problems = problems(userId, plan, input.extend(), extension, routeId);
 			Placement placement = place(routes, routeId, slot, problems);
 			checkLocks(userId, placement, now, problems);
 			refuseIf(problems);
 
 			moveShifted(routes, placement, now);
-			store.update(routeId, toStore(plan), now);
+			store.update(routeId, toStore(plan, extension.orElse(null)), now);
 			store.moveToSlot(routeId, slot, now);
 			startLocks(userId, placement, now);
 			return view(store.active(userId), routeId);
@@ -175,14 +214,60 @@ class RouteService {
 		return store.lockAccount(userId).filter(a -> a.bannedAt() == null).orElseThrow(RouteService::signedOut);
 	}
 
-	/** Route problems, then overlaps with the user's other routes (checked under the user lock). */
-	private List<Problem> problems(long userId, RoutePlan plan, Long exceptRouteId) {
+	/** The chosen bus route's extension, when the user chose "Extend" and the route still extends it. */
+	private Optional<Extension> extension(RouteInput input, RoutePlan plan) {
+		return input.extend() == null ? Optional.empty() : busRoutes.extension(input.extend(), plan);
+	}
+
+	/**
+	 * Route problems, then the extension's (when "Extend" was chosen), then overlaps with the user's other routes
+	 * (checked under the user lock). An extension's overlap check looks only at its new part, which is all that
+	 * scores.
+	 */
+	private List<Problem> problems(long userId, RoutePlan plan, Long extend, Optional<Extension> extension,
+			Long exceptRouteId) {
 		List<Problem> problems = new ArrayList<>(routeProblems(plan));
-		if (problems.isEmpty()) {
-			store.overlaps(userId, plan.segmentIds(), exceptRouteId)
-				.forEach(o -> problems.add(Problem.overlap(o.id(), o.slot(), o.name())));
+		if (!problems.isEmpty()) {
+			return problems;
 		}
+		if (extend != null && extension.isEmpty()) {
+			problems.add(Problem.of(Problem.Code.NOT_AN_EXTENSION));
+			return problems;
+		}
+		extension.ifPresent(e -> problems.addAll(extensionProblems(e)));
+		problems.addAll(overlaps(userId, extension.map(e -> scoringSegments(plan, e)).orElse(plan.segmentIds()),
+				exceptRouteId));
 		return problems;
+	}
+
+	private static List<Problem> extensionProblems(Extension e) {
+		return e.allowed() ? List.of() : List.of(Problem.extensionTooLong(e.totalM(), BusRoutes.MAX_EXTENDED_M));
+	}
+
+	private List<Problem> overlaps(long userId, Set<Long> segmentIds, Long exceptRouteId) {
+		return store.overlaps(userId, segmentIds, exceptRouteId)
+			.stream()
+			.map(o -> Problem.overlap(o.id(), o.slot(), o.name()))
+			.toList();
+	}
+
+	/** An extension scores only off its bus route. */
+	private static Set<Long> scoringSegments(RoutePlan plan, Extension e) {
+		Set<Long> scoring = new HashSet<>(plan.segmentIds());
+		scoring.removeAll(e.busSegmentIds());
+		return scoring;
+	}
+
+	/** The new end's name ("Horana"): the route's end when its new part comes last, otherwise its start. */
+	private String newEnd(RoutePlan plan, Extension e) {
+		LatLon end = e.newPartLast() ? plan.end().snapped() : plan.start().snapped();
+		return Objects.requireNonNullElse(roads.placeName(end), e.newPartLast() ? "End" : "Start");
+	}
+
+	/** An extension is named by the whole extended route: "Pettah → Horana" for bus 99 extended to Horana. */
+	private String extendedName(RoutePlan plan, Extension e) {
+		String newEnd = newEnd(plan, e);
+		return e.newPartLast() ? e.farEndName() + " → " + newEnd : newEnd + " → " + e.farEndName();
 	}
 
 	/** Main roads only, a way there and back, and the 40 km cap on the longer direction's actual length. */
@@ -259,11 +344,13 @@ class RouteService {
 		}
 	}
 
-	private NewRoute toStore(RoutePlan plan) {
+	private NewRoute toStore(RoutePlan plan, Extension extension) {
 		List<LatLon> points = plan.points().stream().map(SnappedPoint::snapped).toList();
-		return new NewRoute(roads.name(points.getFirst(), points.getLast()), points.getFirst(), points.getLast(),
-				points.subList(1, points.size() - 1), plan.out().line(), plan.back().line(), plan.out().lengthM(),
-				plan.back().lengthM(), plan.segmentIds());
+		String name = extension != null ? extendedName(plan, extension) : roads.name(points.getFirst(), points.getLast());
+		return new NewRoute(name, points.getFirst(), points.getLast(), points.subList(1, points.size() - 1),
+				plan.out().line(), plan.back().line(), plan.out().lengthM(), plan.back().lengthM(), plan.segmentIds(),
+				extension == null ? null : extension.busRouteId(),
+				extension == null ? List.of() : extension.busSegmentIds());
 	}
 
 	private MyRoutes myRoutes(long userId, Account account, Instant now) {
@@ -287,7 +374,8 @@ class RouteService {
 
 	private static RouteView view(StoredRoute r, Busiest busiest) {
 		return new RouteView(r.id(), r.slot(), r.name(), r.start(), r.end(), List.copyOf(r.waypoints()), Views.line(r.out()),
-				Views.line(r.back()), r.lengthOutM(), r.lengthBackM(), r.createdAt(), r.updatedAt(), busiest);
+				Views.line(r.back()), r.lengthOutM(), r.lengthBackM(), r.createdAt(), r.updatedAt(), busiest,
+				r.busRouteId() == null ? null : new BusRef(r.busRouteId(), r.busNumber()));
 	}
 
 	private static ResponseStatusException signedOut() {

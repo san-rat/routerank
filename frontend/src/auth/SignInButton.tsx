@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { api, type Me } from '../api/client'
+import { api, ApiError, type Me } from '../api/client'
+import { deviceSignal, turnstileToken } from '../fraud/botCheck'
 import { googleClientId, loadGoogle } from './google'
 
-/** "Continue with Google". Each attempt uses a fresh nonce from the API. */
+/**
+ * "Continue with Google". Each attempt uses a fresh nonce from the API, and sends an invisible Turnstile check and
+ * the device signal with Google's token.
+ */
 export function SignInButton({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
   const button = useRef<HTMLDivElement>(null)
   const [attempt, setAttempt] = useState(0)
@@ -21,10 +25,16 @@ export function SignInButton({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
           auto_select: false,
           cancel_on_tap_outside: true,
           callback: ({ credential }) => {
-            api.signIn(credential).then(onSignedIn, () => {
-              setError('Sign-in failed. Please try again.')
-              setAttempt((n) => n + 1) // the nonce is used up; get a new one
-            })
+            Promise.all([turnstileToken('signin'), deviceSignal()])
+              .then(([turnstile, device]) => api.signIn(credential, turnstile, device))
+              .then(onSignedIn, (e: unknown) => {
+                setError(
+                  e instanceof ApiError && e.code?.startsWith('bot_check')
+                    ? "Couldn't check that you're not a bot. Please try again."
+                    : 'Sign-in failed. Please try again.',
+                )
+                setAttempt((n) => n + 1) // the nonce is used up; get a new one
+              })
           },
         })
         google.id.renderButton(button.current, {

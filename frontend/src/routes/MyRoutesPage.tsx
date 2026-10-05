@@ -197,7 +197,10 @@ function MyRoutesList({ initials }: { initials: string }) {
               <span className="slot-badge">#{s}</span>
               <span className="slot-text">
                 <strong>{route.name}</strong>
-                <span>{formatKm(Math.max(route.lengthOutM, route.lengthBackM))}</span>
+                <span>
+                  {formatKm(Math.max(route.lengthOutM, route.lengthBackM))}
+                  {route.extendsBus && ` · extends bus ${route.extendsBus.number}`}
+                </span>
                 {route.busiest && (
                   <Link className="busiest" to={`/s/${route.busiest.slug}`}>
                     Busiest stretch: {route.busiest.name} · {route.busiest.points.toLocaleString('en-US')} pts

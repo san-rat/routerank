@@ -140,6 +140,20 @@ public class Roads implements DisposableBean {
 		return Objects.requireNonNullElse(from, "Start") + " → " + Objects.requireNonNullElse(to, "End");
 	}
 
+	/** The nearest place's name, or null when the import has no places. */
+	public String placeName(LatLon point) {
+		return places.nearestName(current.id(), point);
+	}
+
+	/** Towns, suburbs and quarters a line passes within 400 m of, in order (at most {@code limit}). */
+	public List<String> townsAlong(List<LatLon> line, int limit) {
+		StringBuilder wkt = new StringBuilder("LINESTRING(");
+		for (int i = 0; i < line.size(); i++) {
+			wkt.append(i > 0 ? ", " : "").append(line.get(i).lon()).append(' ').append(line.get(i).lat());
+		}
+		return places.along(current.id(), wkt.append(')').toString(), 400, limit);
+	}
+
 	/** Places whose English name starts with the text, biggest kinds first. */
 	public List<Place> searchPlaces(String prefix, int limit) {
 		if (!enabled()) {

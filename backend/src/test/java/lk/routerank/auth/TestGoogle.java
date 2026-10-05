@@ -28,7 +28,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
  * instead of Google's. The issuer, audience and expiry checks are the real ones.
  */
 @TestConfiguration(proxyBeanMethods = false)
-class TestGoogle {
+public class TestGoogle {
 
 	static final String CLIENT_ID = "test-client.apps.googleusercontent.com";
 

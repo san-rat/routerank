@@ -2195,3 +2195,460 @@ a {
     background: var(--surface-bg);
   }
 }
+
+/* ---------- Bus check (Figma W18, W18b) ---------- */
+
+.bus-check-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bus-check-header h2 {
+  font-size: 18px;
+}
+
+.bus-badge {
+  display: grid;
+  flex: none;
+  place-items: center;
+  min-width: 48px;
+  height: 48px;
+  padding: 0 6px;
+  border-radius: 14px;
+  background: var(--bus-red);
+  color: var(--text-inverse);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.bus-options {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bus-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--surface-border);
+  border-radius: 16px;
+  background: var(--surface-card);
+  text-align: left;
+}
+
+.bus-option > img {
+  flex: none;
+}
+
+.bus-option.selected {
+  padding: 13px;
+  border: 2px solid var(--brand-primary);
+  background: var(--brand-primary-soft);
+}
+
+.bus-option.blocked {
+  background: var(--surface-bg);
+  cursor: default;
+}
+
+.bus-option.blocked .bus-option-title strong {
+  color: var(--text-tertiary);
+}
+
+.bus-option-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-secondary);
+}
+
+.bus-option-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.bus-option-title strong {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: normal;
+  color: var(--text-primary);
+}
+
+.tag {
+  padding: 3px 7px;
+  border-radius: 8px;
+  color: var(--text-inverse);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: normal;
+}
+
+.tag.teal {
+  background: var(--brand-primary);
+}
+
+.tag.amber {
+  background: var(--warn-amber);
+}
+
+.tag.red {
+  background: var(--bus-red);
+}
+
+.length-check {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+  margin-top: 2px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--surface-border);
+}
+
+.length-check .bus {
+  background: var(--bus-red);
+}
+
+.length-check .new {
+  background: var(--brand-primary);
+}
+
+.length-check .over {
+  background: var(--warn-amber);
+}
+
+.length-legend {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: normal;
+}
+
+.length-legend .bus {
+  color: var(--bus-red);
+}
+
+.length-legend .new {
+  color: var(--brand-primary);
+}
+
+.length-legend .over {
+  color: var(--warn-amber);
+}
+
+.length-legend strong {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Only a bot fills this in */
+.honeypot {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* Turnstile shows itself only when it can't tell a person from a bot */
+.turnstile {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  z-index: 100;
+  transform: translateX(-50%);
+}
+
+/* ---------- Bus routes on the map (Figma W05) ---------- */
+
+.chip-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--surface-border);
+  border-radius: 18px;
+  background: var(--surface-card);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: var(--shadow-soft);
+}
+
+.chip-toggle.off {
+  color: var(--text-tertiary);
+}
+
+.chip-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+}
+
+.chip-dot.bus {
+  background: var(--bus-red);
+}
+
+.chip-toggle.off .chip-dot {
+  background: var(--text-tertiary);
+}
+
+.tag.extends {
+  display: inline-block;
+  margin-left: 6px;
+  vertical-align: 1px;
+}
+
+.bus-sheet .stretch-header {
+  align-items: center;
+}
+
+.bus-via {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--surface-bg);
+}
+
+.bus-via span {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+}
+
+.bus-via strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.bus-wanted {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--brand-primary-soft);
+}
+
+.bus-wanted > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bus-wanted strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--brand-primary);
+}
+
+.bus-wanted span span {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ---------- Admin pages (plain, no Figma design) ---------- */
+
+.page.admin {
+  max-width: 960px;
+}
+
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 16px;
+}
+
+.admin-tabs a {
+  padding: 6px 12px;
+  border-radius: 16px;
+  background: var(--surface-card);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.admin-tabs a.active {
+  background: var(--brand-primary);
+  color: var(--text-inverse);
+}
+
+.admin-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.admin-section h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.admin-section label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-section input,
+.reason-form input,
+.admin-search input {
+  padding: 8px 10px;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 400;
+}
+
+.muted {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.admin-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  background: var(--surface-card);
+}
+
+.admin-card header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-account {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 8px;
+  border-top: 1px solid var(--surface-border);
+}
+
+.admin-account a,
+.admin-list a {
+  font-weight: 600;
+  color: var(--brand-primary);
+}
+
+.admin-routes,
+.admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.admin-routes li,
+.admin-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.admin-routes li.removed > span,
+.admin-list li.removed > span {
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+}
+
+.admin-actions,
+.reason-actions,
+.admin-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-button {
+  display: inline-block;
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: var(--brand-primary);
+  color: var(--text-inverse);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-button.danger {
+  background: var(--bus-red);
+}
+
+.admin-button.plain {
+  background: var(--surface-bg);
+  color: var(--text-primary);
+}
+
+.admin-button:disabled {
+  opacity: 0.5;
+}
+
+.reason-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  font-size: 13px;
+}
+
+.reason-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--surface-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.bus-number {
+  display: inline-block;
+  min-width: 32px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--bus-red);
+  color: var(--text-inverse);
+  text-align: center;
+}
+
+.bus-form.route-sheet {
+  z-index: 20;
+}

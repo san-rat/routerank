@@ -26,6 +26,27 @@ class Places {
 	}
 
 	/**
+	 * Towns, suburbs and quarters within {@code withinM} of a line, in the order the line passes them, each once:
+	 * "Borella · Nugegoda · Maharagama" on a bus route's sheet (W05).
+	 */
+	List<String> along(long importRunId, String lineWkt, double withinM, int limit) {
+		return jdbc.sql("""
+				SELECT name FROM (
+				    SELECT DISTINCT ON (p.name) p.name, ST_LineLocatePoint(l.geom, p.geom) AS at
+				    FROM place p, (SELECT ST_GeomFromText(:wkt, 4326) AS geom) l
+				    WHERE p.import_run_id = :run AND p.kind IN ('city', 'town', 'suburb', 'quarter')
+				      AND ST_DWithin(p.geom::geography, l.geom::geography, :within)
+				    ORDER BY p.name, at
+				) passed ORDER BY at LIMIT :limit""")
+			.param("run", importRunId)
+			.param("wkt", lineWkt)
+			.param("within", withinM)
+			.param("limit", limit)
+			.query(String.class)
+			.list();
+	}
+
+	/**
 	 * Names starting with the text (case-insensitive), biggest places first: cities, towns, suburbs, quarters,
 	 * neighbourhoods, villages. Aliases match too ("Pitakotuwa" finds Pettah); results show the main name.
 	 */

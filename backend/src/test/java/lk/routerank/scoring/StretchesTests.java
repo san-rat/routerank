@@ -223,7 +223,7 @@ class StretchesTests {
 	static Group group(ScoredSegment... segments) {
 		return new Group(segments[0].province(), List.of(segments), List.of(segments).stream().allMatch(ScoredSegment::link),
 				List.of(segments).stream().mapToDouble(ScoredSegment::lengthM).sum(), new int[] { 0, 0, segments[0].points() },
-				segments[0].people());
+				segments[0].people(), null);
 	}
 
 	static Named named(String name, ScoredSegment... segments) {
@@ -269,10 +269,10 @@ class StretchesTests {
 		Result r = Rankings.rank(List.of(named("A → B", seg(1, 0, 1, 30, 9, 1500)),
 				named("C → D", seg(2, 10, 11, 12, 4, 2500))), List.of());
 		Instant at = Instant.parse("2026-10-04T10:00:00Z");
-		Publication p = Publication.build(r.stretches(), r.slugs(), List.of("Western", "Northern"), Map.of("Western", 13), at, json);
+		Publication p = Publication.build(r.stretches(), r.slugs(), List.of("Western", "Northern"), Map.of("Western", 13), List.of(), Map.of(), at, json);
 
 		assertThat(p.files().keySet()).allMatch(k -> k.matches("[a-z/0-9-]+-[0-9a-f]{12}\\.json"));
-		assertThat(Publication.build(r.stretches(), r.slugs(), List.of("Western", "Northern"), Map.of("Western", 13), at, json).files().keySet())
+		assertThat(Publication.build(r.stretches(), r.slugs(), List.of("Western", "Northern"), Map.of("Western", 13), List.of(), Map.of(), at, json).files().keySet())
 			.isEqualTo(p.files().keySet()); // same content, same names: nothing to upload again
 
 		JsonNode m = json.readTree(p.manifest());
@@ -300,7 +300,7 @@ class StretchesTests {
 		List<Stretch> stretches = new ArrayList<>();
 		for (int p = 1; p <= 10; p++) {
 			stretches.add(new Stretch("s" + p, "S", null, "Western", List.of(), 1000, p, 3, new int[3], new double[2][],
-					false, null, null));
+					false, null, null, null));
 		}
 		assertThat(Publication.bands(stretches)).containsExactly(3, 5, 7, 9);
 		assertThat(Publication.bands(stretches.subList(0, 1))).isEmpty();

@@ -120,6 +120,7 @@ export function LeaderRow({ entry, top, manifest, showProvince = true }: {
           <span>
             {showProvince ? `${province} · ` : ''}
             {formatKm(entry.lengthM)}
+            {entry.extendsBus && <span className="tag red extends">Extends {entry.extendsBus}</span>}
           </span>
           <span className="score-bar">
             <span style={{ width: `${Math.max(4, ratio * 100)}%`, background: colour }} />
@@ -212,7 +213,14 @@ export function StretchPage() {
         <span className={`rank-badge${d.rankOverall ? '' : ' unranked'}`}>{d.rankOverall ? `#${d.rankOverall}` : '–'}</span>
         <div>
           <h2>{d.name}</h2>
-          <p>{[d.road, formatKm(d.lengthM)].filter(Boolean).join(' · ')}</p>
+          <p>
+            {[d.road, formatKm(d.lengthM)].filter(Boolean).join(' · ')}
+            {d.extendsBus && (
+              <Link className="tag red extends" to={`/bus/${encodeURIComponent(d.extendsBus)}`}>
+                Extends {d.extendsBus}
+              </Link>
+            )}
+          </p>
         </div>
         <button type="button" className="close-button" onClick={() => navigate(`/map/${province}`)} aria-label="Close">
           <img src={close} alt="" width={20} height={20} />
