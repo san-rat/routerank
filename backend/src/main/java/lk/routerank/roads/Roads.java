@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import com.graphhopper.GHRequest;
 import com.graphhopper.GHResponse;
@@ -117,20 +118,33 @@ public class Roads implements DisposableBean {
 	 * the way there through them, the way back from end to start, and the segments either direction covers.
 	 */
 	public RoutePlan plan(List<LatLon> points) {
+		return plan(points, List.of());
+	}
+
+	/**
+	 * As {@link #plan(List)}, with the way back routed through waypoints of its own (end, back waypoints, start),
+	 * for a bus that comes back on a different road. With none, the way back is the fastest, as for a route.
+	 */
+	public RoutePlan plan(List<LatLon> points, List<LatLon> backWaypoints) {
 		List<SnappedPoint> snapped = points.stream().map(this::snap).toList();
-		if (snapped.stream().anyMatch(p -> p.snapped() == null)) {
-			return new RoutePlan(snapped, null, null, Set.of());
+		List<SnappedPoint> backSnapped = backWaypoints.stream().map(this::snap).toList();
+		if (Stream.concat(snapped.stream(), backSnapped.stream()).anyMatch(p -> p.snapped() == null)) {
+			return new RoutePlan(snapped, backSnapped, null, null, Set.of());
 		}
 		List<LatLon> via = snapped.stream().map(SnappedPoint::snapped).toList();
+		List<LatLon> backVia = Stream
+			.of(Stream.of(via.getLast()), backSnapped.stream().map(SnappedPoint::snapped), Stream.of(via.getFirst()))
+			.flatMap(s -> s)
+			.toList();
 		ResponsePath out = route(via);
-		ResponsePath back = out == null ? null : route(List.of(via.getLast(), via.getFirst()));
+		ResponsePath back = out == null ? null : route(backVia);
 		if (out == null) {
-			return new RoutePlan(snapped, null, null, Set.of());
+			return new RoutePlan(snapped, backSnapped, null, null, Set.of());
 		}
 		Set<Long> segments = matcher.match(current.id(), out, back);
 		Leg outLeg = new Leg(line(out.getPoints()), out.getDistance(), List.of(), List.of());
 		Leg backLeg = back == null ? null : WayBack.describe(outLeg.line(), back);
-		return new RoutePlan(snapped, outLeg, backLeg, segments);
+		return new RoutePlan(snapped, backSnapped, outLeg, backLeg, segments);
 	}
 
 	/** A route's auto-name from the nearest place to each end, e.g. "Pettah → Horana". */

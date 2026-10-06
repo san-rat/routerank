@@ -2472,6 +2472,53 @@ a {
   font-weight: 600;
 }
 
+/* Way there and way back, each with its own direction */
+.bus-directions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  list-style: none;
+  border-radius: 14px;
+  background: var(--surface-bg);
+}
+
+.bus-directions li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.bus-directions li > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bus-directions strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.bus-directions li > span:last-child > span {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.bus-arrow {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bus-red);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .bus-wanted {
   display: flex;
   align-items: center;

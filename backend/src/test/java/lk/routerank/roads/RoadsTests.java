@@ -62,6 +62,23 @@ class RoadsTests {
 	}
 
 	@Test
+	void aBusWayBackCanTakeWaypointsOfItsOwn() {
+		RoutePlan fastest = roads.plan(List.of(KOLLUPITIYA, BAMBALAPITIYA));
+		RoutePlan viaBorella = roads.plan(List.of(KOLLUPITIYA, BAMBALAPITIYA), List.of(BORELLA));
+		LatLon borella = roads.snap(BORELLA).snapped();
+
+		// The way there doesn't change; the way back goes end → Borella → start
+		assertThat(viaBorella.out().line()).isEqualTo(fastest.out().line());
+		assertThat(viaBorella.backPoints()).extracting(RoutePlan.SnappedPoint::snapped).containsExactly(borella);
+		assertThat(viaBorella.back().line().getFirst()).isEqualTo(viaBorella.end().snapped());
+		assertThat(viaBorella.back().line().getLast()).isEqualTo(viaBorella.start().snapped());
+		assertThat(viaBorella.back().line()).anySatisfy(p -> assertThat(Roads.distanceM(p, borella)).isLessThan(1));
+		assertThat(viaBorella.back().lengthM()).isGreaterThan(fastest.back().lengthM() + 1_000);
+		assertThat(viaBorella.segmentIds()).isNotEqualTo(fastest.segmentIds());
+		assertThat(fastest.backPoints()).isEmpty();
+	}
+
+	@Test
 	void matchesSegmentsOfTheCurrentImportCoveredByEitherDirection() {
 		RoutePlan plan = roads.plan(List.of(KOLLUPITIYA, BAMBALAPITIYA));
 		assertThat(plan.segmentIds()).isNotEmpty();

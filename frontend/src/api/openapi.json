@@ -1060,6 +1060,14 @@
             "maxItems" : 25,
             "minItems" : 0
           },
+          "backWaypoints" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/LatLon"
+            },
+            "maxItems" : 25,
+            "minItems" : 0
+          },
           "reason" : {
             "type" : "string",
             "maxLength" : 500,
@@ -1360,6 +1368,12 @@
               "$ref" : "#/components/schemas/LatLon"
             }
           },
+          "backWaypoints" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/LatLon"
+            }
+          },
           "out" : {
             "type" : "array",
             "items" : {
@@ -1387,6 +1401,12 @@
           "lengthBackM" : {
             "type" : "number",
             "format" : "double"
+          },
+          "backVia" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
           },
           "startName" : {
             "type" : "string"
@@ -1578,6 +1598,12 @@
             "$ref" : "#/components/schemas/LatLon"
           },
           "waypoints" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/LatLon"
+            }
+          },
+          "backWaypoints" : {
             "type" : "array",
             "items" : {
               "$ref" : "#/components/schemas/LatLon"

@@ -8,11 +8,18 @@ import java.util.Set;
  * the way back (end → start), and the road segments it counts for.
  *
  * @param points start, waypoints and end in order; a point that has no main road nearby has {@code snapped} null
+ * @param backPoints the way back's own waypoints, end to start (bus routes only; empty for routes)
  * @param out the way there, or {@code null} when the points can't be joined on main roads
  * @param back the way back, or {@code null} when there is none on main roads (or no way there)
  * @param segmentIds the segments either direction covers by more than half (ADR 0001), each once
  */
-public record RoutePlan(List<SnappedPoint> points, Leg out, Leg back, Set<Long> segmentIds) {
+public record RoutePlan(List<SnappedPoint> points, List<SnappedPoint> backPoints, Leg out, Leg back,
+		Set<Long> segmentIds) {
+
+	/** A route's plan: its way back is the fastest, with no waypoints of its own. */
+	public RoutePlan(List<SnappedPoint> points, Leg out, Leg back, Set<Long> segmentIds) {
+		this(points, List.of(), out, back, segmentIds);
+	}
 
 	public SnappedPoint start() {
 		return points.getFirst();

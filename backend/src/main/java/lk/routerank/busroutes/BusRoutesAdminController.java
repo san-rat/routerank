@@ -61,7 +61,7 @@ class BusRoutesAdminController {
 		long admin = admins.require(user, session);
 		requireReason(input.reason());
 		return new Created(busRoutes.add(new BusRouteInput(null, input.number(), input.startName(), input.endName(),
-				input.start(), input.end(), input.waypoints(), input.reason()), admin));
+				input.start(), input.end(), input.waypoints(), input.backWaypoints(), input.reason()), admin));
 	}
 
 	/** 409 when routes extend it: retire it and add a new one instead. */
@@ -97,24 +97,26 @@ class BusRoutesAdminController {
 
 	/** Lines are {@code [lon, lat]} pairs. */
 	record BusRouteView(long id, String number, String startName, String endName, LatLon start, LatLon end,
-			List<LatLon> waypoints, double[][] out, double[][] back, double lengthOutM, double lengthBackM,
-			List<String> towns, Instant createdAt, Instant updatedAt, Instant retiredAt, int extensions) {
+			List<LatLon> waypoints, List<LatLon> backWaypoints, double[][] out, double[][] back, double lengthOutM,
+			double lengthBackM, List<String> towns, Instant createdAt, Instant updatedAt, Instant retiredAt,
+			int extensions) {
 
 		static BusRouteView of(Listed b) {
 			return new BusRouteView(b.id(), b.number(), b.startName(), b.endName(), b.start(), b.end(), b.waypoints(),
-					coords(b.out()), coords(b.back()), b.lengthOutM(), b.lengthBackM(), b.towns(), b.createdAt(),
+					b.backWaypoints(), coords(b.out()), coords(b.back()), b.lengthOutM(), b.lengthBackM(), b.towns(), b.createdAt(),
 					b.updatedAt(), b.retiredAt(), b.extensions());
 		}
 
 	}
 
 	/** @param problems codes that stop it being saved, e.g. {@code SIDE_ROAD:start}, {@code NO_WAY_BACK} */
-	record DrawingView(List<LatLon> points, double[][] out, double[][] back, double lengthOutM, double lengthBackM,
-			String startName, String endName, List<String> towns, List<String> problems) {
+	record DrawingView(List<LatLon> points, List<LatLon> backWaypoints, double[][] out, double[][] back,
+			double lengthOutM, double lengthBackM, List<String> backVia, String startName, String endName,
+			List<String> towns, List<String> problems) {
 
 		static DrawingView of(Drawing d) {
-			return new DrawingView(d.points(), coords(d.out()), coords(d.back()), d.lengthOutM(), d.lengthBackM(),
-					d.startName(), d.endName(), d.towns(), d.problems());
+			return new DrawingView(d.points(), d.backWaypoints(), coords(d.out()), coords(d.back()), d.lengthOutM(),
+					d.lengthBackM(), d.backVia(), d.startName(), d.endName(), d.towns(), d.problems());
 		}
 
 	}

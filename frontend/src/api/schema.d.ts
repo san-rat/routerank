@@ -513,6 +513,7 @@ export interface components {
             start: components["schemas"]["LatLon"];
             end: components["schemas"]["LatLon"];
             waypoints: components["schemas"]["LatLon"][];
+            backWaypoints?: components["schemas"]["LatLon"][];
             reason?: string;
         };
         BusCheck: {
@@ -610,12 +611,14 @@ export interface components {
         };
         DrawingView: {
             points: components["schemas"]["LatLon"][];
+            backWaypoints: components["schemas"]["LatLon"][];
             out: number[][];
             back: number[][];
             /** Format: double */
             lengthOutM: number;
             /** Format: double */
             lengthBackM: number;
+            backVia: string[];
             startName: string;
             endName: string;
             towns: string[];
@@ -690,6 +693,7 @@ export interface components {
             start: components["schemas"]["LatLon"];
             end: components["schemas"]["LatLon"];
             waypoints: components["schemas"]["LatLon"][];
+            backWaypoints: components["schemas"]["LatLon"][];
             out: number[][];
             back: number[][];
             /** Format: double */

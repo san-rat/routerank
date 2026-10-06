@@ -190,6 +190,49 @@ class BusRoutesTests {
 	}
 
 	@Test
+	void theWayBackCanBeDrawnOnADifferentRoad() throws Exception {
+		LatLon townHall = snapped(6.9167, 79.8636);
+		Map<String, Object> fastest = bus("101", fort, kollupitiya, "Real route, from the NTC list");
+		Map<String, Object> viaTownHall = new HashMap<>(fastest);
+		viaTownHall.put("backWaypoints", List.of(townHall));
+
+		JsonNode plain = json.readTree(asAdmin(post("/api/admin/bus-routes/draw"), fastest).andReturn().getResponse()
+			.getContentAsString());
+		JsonNode drawn = json.readTree(asAdmin(post("/api/admin/bus-routes/draw"), viaTownHall)
+			.andExpect(jsonPath("$.problems").isEmpty())
+			.andExpect(jsonPath("$.backWaypoints.length()").value(1))
+			.andReturn().getResponse().getContentAsString());
+		assertThat(drawn.get("lengthOutM").asDouble()).isEqualTo(plain.get("lengthOutM").asDouble());
+		assertThat(drawn.get("lengthBackM").asDouble()).isGreaterThan(plain.get("lengthBackM").asDouble() + 500);
+		assertThat(drawn.get("backVia")).isNotEmpty();
+		assertThat(plain.get("backWaypoints")).isEmpty();
+
+		// Saved and listed with its own waypoints; redrawing keeps them apart from the way there's
+		long id = json.readTree(asAdmin(post("/api/admin/bus-routes"), viaTownHall).andExpect(status().isCreated())
+			.andReturn().getResponse().getContentAsString()).get("id").asLong();
+		asAdmin(get("/api/admin/bus-routes"), Map.of())
+			.andExpect(jsonPath("$[0].id").value(id))
+			.andExpect(jsonPath("$[0].waypoints").isEmpty())
+			.andExpect(jsonPath("$[0].backWaypoints.length()").value(1))
+			.andExpect(jsonPath("$[0].lengthBackM").value(drawn.get("lengthBackM").asDouble()));
+		assertThat(jdbc.sql("SELECT back_via FROM bus_route WHERE id = :id").param("id", id)
+			.query((rs, n) -> List.of((String[]) rs.getArray(1).getArray())).single())
+			.containsExactlyElementsOf(drawn.get("backVia").valueStream().map(JsonNode::asString).toList());
+
+		// Back to the fastest way back
+		asAdmin(put("/api/admin/bus-routes/" + id), fastest).andExpect(status().isNoContent());
+		asAdmin(get("/api/admin/bus-routes"), Map.of())
+			.andExpect(jsonPath("$[0].backWaypoints").isEmpty())
+			.andExpect(jsonPath("$[0].lengthBackM").value(plain.get("lengthBackM").asDouble()));
+
+		// A way-back waypoint out at sea
+		Map<String, Object> atSea = new HashMap<>(fastest);
+		atSea.put("backWaypoints", List.of(new LatLon(6.9, 79.7)));
+		asAdmin(post("/api/admin/bus-routes/draw"), atSea)
+			.andExpect(jsonPath("$.problems[0]").value("NO_ROAD_NEARBY:backWaypoint"));
+	}
+
+	@Test
 	void voterPagesCantChangeBusRoutes() throws Exception {
 		mvc.perform(proxied(post("/api/admin/bus-routes")).with(voter).with(csrf())
 			.content(json.writeValueAsString(bus("101", fort, kollupitiya, "trying")))).andExpect(status().isForbidden());
