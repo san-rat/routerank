@@ -53,7 +53,8 @@ class BusRouteStore {
 
 	/** Every bus route, retired ones too, newest first within each, with how many routes extend it. */
 	List<Listed> all() {
-		Map<Long, List<LatLon>> waypoints = waypoints();
+		Map<Long, List<LatLon>> waypoints = waypoints("out");
+		Map<Long, List<LatLon>> backWaypoints = waypoints("back");
 		return jdbc.sql("""
 				SELECT b.id, b.number, b.start_name, b.end_name, ST_Y(b.start_point) AS start_lat,
 				       ST_X(b.start_point) AS start_lon, ST_Y(b.end_point) AS end_lat, ST_X(b.end_point) AS end_lon,
@@ -63,7 +64,8 @@ class BusRouteStore {
 				FROM bus_route b ORDER BY b.retired_at IS NOT NULL, b.number, b.id""")
 			.query((rs, n) -> new Listed(rs.getLong("id"), rs.getString("number"), rs.getString("start_name"),
 					rs.getString("end_name"), point(rs, "start"), point(rs, "end"),
-					waypoints.getOrDefault(rs.getLong("id"), List.of()), parseLine(rs.getString("out_wkt")),
+					waypoints.getOrDefault(rs.getLong("id"), List.of()),
+					backWaypoints.getOrDefault(rs.getLong("id"), List.of()), parseLine(rs.getString("out_wkt")),
 					parseLine(rs.getString("back_wkt")), rs.getDouble("length_out_m"), rs.getDouble("length_back_m"),
 					strings(rs.getArray("towns")), instant(rs, "created_at"), instant(rs, "updated_at"),
 					instant(rs, "retired_at"), rs.getInt("extensions")))
@@ -94,10 +96,10 @@ class BusRouteStore {
 	long insert(Drawn bus, Instant now) {
 		long id = jdbc.sql("""
 				INSERT INTO bus_route (number, name, start_name, end_name, start_point, end_point, geom_out, geom_back,
-				                       length_out_m, length_back_m, towns, created_at, updated_at)
+				                       length_out_m, length_back_m, back_via, towns, created_at, updated_at)
 				VALUES (:number, :name, :startName, :endName, ST_SetSRID(ST_MakePoint(:startLon, :startLat), 4326),
 				        ST_SetSRID(ST_MakePoint(:endLon, :endLat), 4326), ST_GeomFromText(:out, 4326),
-				        ST_GeomFromText(:back, 4326), :lengthOut, :lengthBack, :towns, :now, :now)
+				        ST_GeomFromText(:back, 4326), :lengthOut, :lengthBack, :backVia, :towns, :now, :now)
 				RETURNING id""")
 			.params(params(bus, now))
 			.query(Long.class)
@@ -112,7 +114,7 @@ class BusRouteStore {
 				       start_point = ST_SetSRID(ST_MakePoint(:startLon, :startLat), 4326),
 				       end_point = ST_SetSRID(ST_MakePoint(:endLon, :endLat), 4326), geom_out = ST_GeomFromText(:out, 4326),
 				       geom_back = ST_GeomFromText(:back, 4326), length_out_m = :lengthOut, length_back_m = :lengthBack,
-				       towns = :towns, updated_at = :now
+				       back_via = :backVia, towns = :towns, updated_at = :now
 				WHERE id = :id""")
 			.param("id", id)
 			.params(params(bus, now))
@@ -143,23 +145,15 @@ class BusRouteStore {
 		params.put("back", wkt(bus.back()));
 		params.put("lengthOut", bus.lengthOutM());
 		params.put("lengthBack", bus.lengthBackM());
+		params.put("backVia", bus.backVia().toArray(String[]::new));
 		params.put("towns", bus.towns().toArray(String[]::new));
 		params.put("now", Timestamp.from(now));
 		return params;
 	}
 
 	private void writeParts(long id, Drawn bus) {
-		for (int i = 0; i < bus.waypoints().size(); i++) {
-			LatLon p = bus.waypoints().get(i);
-			jdbc.sql("""
-					INSERT INTO bus_route_waypoint (bus_route_id, seq, point)
-					VALUES (:id, :seq, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326))""")
-				.param("id", id)
-				.param("seq", i)
-				.param("lat", p.lat())
-				.param("lon", p.lon())
-				.update();
-		}
+		writeWaypoints(id, "out", bus.waypoints());
+		writeWaypoints(id, "back", bus.backWaypoints());
 		jdbc.sql("""
 				INSERT INTO bus_route_segment (bus_route_id, segment_id)
 				SELECT :id, s FROM unnest(:segments::bigint[]) AS s""")
@@ -168,11 +162,28 @@ class BusRouteStore {
 			.update();
 	}
 
-	private Map<Long, List<LatLon>> waypoints() {
+	private void writeWaypoints(long id, String leg, List<LatLon> waypoints) {
+		for (int i = 0; i < waypoints.size(); i++) {
+			LatLon p = waypoints.get(i);
+			jdbc.sql("""
+					INSERT INTO bus_route_waypoint (bus_route_id, leg, seq, point)
+					VALUES (:id, :leg, :seq, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326))""")
+				.param("id", id)
+				.param("leg", leg)
+				.param("seq", i)
+				.param("lat", p.lat())
+				.param("lon", p.lon())
+				.update();
+		}
+	}
+
+	/** Each bus route's waypoints for one direction ({@code out} or {@code back}), in order. */
+	private Map<Long, List<LatLon>> waypoints(String leg) {
 		Map<Long, List<LatLon>> waypoints = new HashMap<>();
 		jdbc.sql("""
 				SELECT bus_route_id, ST_Y(point) AS lat, ST_X(point) AS lon FROM bus_route_waypoint
-				ORDER BY bus_route_id, seq""")
+				WHERE leg = :leg ORDER BY bus_route_id, seq""")
+			.param("leg", leg)
 			.query((ResultSet rs) -> {
 				waypoints.computeIfAbsent(rs.getLong("bus_route_id"), k -> new ArrayList<>())
 					.add(new LatLon(rs.getDouble("lat"), rs.getDouble("lon")));
@@ -213,14 +224,14 @@ class BusRouteStore {
 
 	/** A bus route worked out on the server from the admin's points, ready to store. */
 	record Drawn(String number, String startName, String endName, LatLon start, LatLon end, List<LatLon> waypoints,
-			List<LatLon> out, List<LatLon> back, double lengthOutM, double lengthBackM, List<String> towns,
-			Collection<Long> segmentIds) {
+			List<LatLon> backWaypoints, List<LatLon> out, List<LatLon> back, double lengthOutM, double lengthBackM,
+			List<String> backVia, List<String> towns, Collection<Long> segmentIds) {
 	}
 
 	/** A stored bus route as the admin pages list it. */
 	record Listed(long id, String number, String startName, String endName, LatLon start, LatLon end,
-			List<LatLon> waypoints, List<LatLon> out, List<LatLon> back, double lengthOutM, double lengthBackM,
-			List<String> towns, Instant createdAt, Instant updatedAt, Instant retiredAt, int extensions) {
+			List<LatLon> waypoints, List<LatLon> backWaypoints, List<LatLon> out, List<LatLon> back, double lengthOutM,
+			double lengthBackM, List<String> towns, Instant createdAt, Instant updatedAt, Instant retiredAt, int extensions) {
 	}
 
 }

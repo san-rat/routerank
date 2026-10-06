@@ -25,8 +25,9 @@ import org.springframework.web.server.ResponseStatusException;
 /**
  * Existing bus routes and the extension rules (see the Spec, "Existing bus routes and extensions").
  *
- * <p>Admins draw bus routes with the same main-road routing as user routes, so both directions come out
- * automatically; bus routes have no length limit. An extension of one must fit in 40 km in each direction, bus
+ * <p>Admins draw bus routes with the same main-road routing as user routes. The way back is the fastest unless the
+ * admin gives it waypoints of its own, for a bus that comes back on a different road; bus routes have no length
+ * limit. An extension of one must fit in 40 km in each direction, bus
  * included, and only its new part scores.
  */
 @Service
@@ -114,7 +115,7 @@ public class BusRoutes {
 
 	/** Works a bus route out from the admin's points, with anything that would stop it being saved. */
 	Drawing draw(BusRouteInput input) {
-		RoutePlan plan = roads.plan(input.points());
+		RoutePlan plan = roads.plan(input.points(), input.backWaypoints());
 		List<String> problems = new ArrayList<>();
 		List<SnappedPoint> points = plan.points();
 		for (int i = 0; i < points.size(); i++) {
@@ -126,6 +127,9 @@ public class BusRoutes {
 			else if (!which.equals("waypoint") && p.offsetM() > SIDE_ROAD_M) {
 				problems.add("SIDE_ROAD:" + which);
 			}
+		}
+		if (plan.backPoints().stream().anyMatch(p -> p.snapped() == null)) {
+			problems.add("NO_ROAD_NEARBY:backWaypoint");
 		}
 		if (problems.isEmpty() && plan.out() == null) {
 			problems.add("NO_ROUTE");
@@ -147,9 +151,11 @@ public class BusRoutes {
 			.filter(t -> !t.equals(startPlace) && !t.equals(endPlace) && !t.equals(startName) && !t.equals(endName))
 			.limit(6)
 			.toList();
-		return new Drawing(snapped, routed ? plan.out().line() : List.of(), routed ? plan.back().line() : List.of(),
-				routed ? plan.out().lengthM() : 0, routed ? plan.back().lengthM() : 0, startName, endName, towns,
-				routed ? Set.copyOf(plan.segmentIds()) : Set.of(), problems);
+		List<LatLon> backSnapped = plan.backPoints().stream().map(p -> p.snapped() != null ? p.snapped() : p.input()).toList();
+		return new Drawing(snapped, backSnapped, routed ? plan.out().line() : List.of(),
+				routed ? plan.back().line() : List.of(), routed ? plan.out().lengthM() : 0,
+				routed ? plan.back().lengthM() : 0, routed ? plan.back().leavesVia() : List.of(), startName, endName,
+				towns, routed ? Set.copyOf(plan.segmentIds()) : Set.of(), problems);
 	}
 
 	long add(BusRouteInput input, long adminId) {
@@ -170,7 +176,7 @@ public class BusRoutes {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "retired bus routes can't be changed");
 		}
 		Drawing d = drawOrRefuse(new BusRouteInput(id, input.number(), input.startName(), input.endName(), input.start(),
-				input.end(), input.waypoints(), input.reason()));
+				input.end(), input.waypoints(), input.backWaypoints(), input.reason()));
 		Instant now = clock.instant();
 		tx.executeWithoutResult(status -> {
 			if (store.extensionCount(id) > 0) {
@@ -210,8 +216,8 @@ public class BusRoutes {
 
 	private static Drawn drawn(BusRouteInput input, Drawing d) {
 		return new Drawn(input.number().strip(), d.startName(), d.endName(), d.points().getFirst(), d.points().getLast(),
-				d.points().subList(1, d.points().size() - 1), d.out(), d.back(), d.lengthOutM(), d.lengthBackM(),
-				d.towns(), d.segmentIds());
+				d.points().subList(1, d.points().size() - 1), d.backWaypoints(), d.out(), d.back(), d.lengthOutM(),
+				d.lengthBackM(), d.backVia(), d.towns(), d.segmentIds());
 	}
 
 	private static Map<String, Object> summary(String number, Drawing d) {
@@ -250,11 +256,13 @@ public class BusRoutes {
 	/**
 	 * A bus route worked out from an admin's points.
 	 *
+	 * @param backWaypoints the way back's own waypoints, snapped, end to start (empty: the fastest way back)
+	 * @param backVia the roads the way back uses where it leaves the way there ("Duplication Road")
 	 * @param problems codes that stop it being saved: {@code SIDE_ROAD:start}, {@code NO_WAY_BACK},
 	 * {@code NUMBER_TAKEN}…
 	 */
-	record Drawing(List<LatLon> points, List<LatLon> out, List<LatLon> back, double lengthOutM, double lengthBackM,
-			String startName, String endName, List<String> towns, Set<Long> segmentIds, List<String> problems) {
+	record Drawing(List<LatLon> points, List<LatLon> backWaypoints, List<LatLon> out, List<LatLon> back,
+			double lengthOutM, double lengthBackM, List<String> backVia, String startName, String endName, List<String> towns, Set<Long> segmentIds, List<String> problems) {
 	}
 
 }

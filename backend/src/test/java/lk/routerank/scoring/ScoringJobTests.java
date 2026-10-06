@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
@@ -21,6 +22,7 @@ import lk.routerank.TestcontainersConfiguration;
 import lk.routerank.auth.SignedInUser;
 import lk.routerank.roads.LatLon;
 import lk.routerank.roads.Roads;
+import lk.routerank.roads.RoutePlan;
 import lk.routerank.scoring.ScoringJob.Run;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -240,6 +242,53 @@ class ScoringJobTests {
 			s.execute("SELECT pg_advisory_unlock(" + ScoringJob.LOCK_KEY + ")");
 		}
 		assertThat(job.runNow()).isPresent();
+	}
+
+	@Test
+	void busRoutesArePublishedWithTheirWayBackDashedWhereItLeavesTheWayThere() throws Exception {
+		// Down Galle Road and back up Duplication Road; and one that comes back the same way
+		RoutePlan galleRoad = roads.plan(List.of(snapped(6.9147, 79.8488), snapped(6.8890, 79.8553)));
+		List<LatLon> sameWay = galleRoad.back().line();
+		insertBus("T1", galleRoad.out().line(), galleRoad.back().line(), galleRoad.back().leavesVia());
+		insertBus("T2", sameWay, sameWay.reversed(), List.of());
+		try {
+			job.runNow().orElseThrow();
+			JsonNode routes = file(manifest().get("buses").asString()).get("routes");
+			JsonNode t1 = routes.valueStream().filter(r -> r.get("number").asString().equals("T1")).findFirst().orElseThrow();
+			JsonNode t2 = routes.valueStream().filter(r -> r.get("number").asString().equals("T2")).findFirst().orElseThrow();
+			assertThat(t1.get("backLeaves")).isNotEmpty();
+			assertThat(t1.get("backLeaves").get(0).size()).isGreaterThan(1);
+			assertThat(t1.get("backVia").valueStream().map(JsonNode::asString).toList())
+				.isEqualTo(galleRoad.back().leavesVia());
+			assertThat(t2.get("backLeaves")).isEmpty();
+			assertThat(t2.get("backVia")).isEmpty();
+		}
+		finally {
+			jdbc.sql("UPDATE bus_route SET retired_at = now() WHERE number IN ('T1', 'T2') AND retired_at IS NULL")
+				.update();
+		}
+	}
+
+	void insertBus(String number, List<LatLon> out, List<LatLon> back, List<String> backVia) {
+		jdbc.sql("""
+				INSERT INTO bus_route (number, name, start_name, end_name, start_point, end_point, geom_out, geom_back,
+				                       length_out_m, length_back_m, back_via)
+				VALUES (:number, 'A → B', 'A', 'B', ST_SetSRID(ST_MakePoint(:startLon, :startLat), 4326),
+				        ST_SetSRID(ST_MakePoint(:endLon, :endLat), 4326), ST_GeomFromText(:out, 4326),
+				        ST_GeomFromText(:back, 4326), 3000, 3000, :backVia)""")
+			.param("number", number)
+			.param("startLon", out.getFirst().lon())
+			.param("startLat", out.getFirst().lat())
+			.param("endLon", out.getLast().lon())
+			.param("endLat", out.getLast().lat())
+			.param("out", wkt(out))
+			.param("back", wkt(back))
+			.param("backVia", backVia.toArray(String[]::new))
+			.update();
+	}
+
+	static String wkt(List<LatLon> line) {
+		return line.stream().map(p -> p.lon() + " " + p.lat()).collect(Collectors.joining(", ", "LINESTRING(", ")"));
 	}
 
 	@Test

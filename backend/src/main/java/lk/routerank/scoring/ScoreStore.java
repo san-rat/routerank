@@ -100,7 +100,10 @@ class ScoreStore {
 	}
 
 	private double[][] coordinates(String geoJson) {
-		JsonNode coords = json.readTree(geoJson).get("coordinates");
+		return coordinates(json.readTree(geoJson).get("coordinates"));
+	}
+
+	private static double[][] coordinates(JsonNode coords) {
 		double[][] line = new double[coords.size()][];
 		for (int i = 0; i < coords.size(); i++) {
 			line[i] = new double[] { coords.get(i).get(0).asDouble(), coords.get(i).get(1).asDouble() };
@@ -159,22 +162,46 @@ class ScoreStore {
 		return people;
 	}
 
-	/** The active bus routes for the map, their lines simplified to about 3 m. */
+	/**
+	 * The active bus routes for the map, their lines simplified to about 3 m. Where the way back leaves the way there
+	 * (more than 25 m from it for at least 60 m, as the route preview's dashes) it is drawn dashed; each such part
+	 * takes 40 m more of the way back at both ends so the dashes meet the solid line.
+	 */
 	List<Publication.BusLine> busLines() {
 		return jdbc.sql("""
-				SELECT id, number, start_name, end_name, towns, length_out_m, length_back_m,
+				SELECT id, number, start_name, end_name, towns, back_via, length_out_m, length_back_m,
 				       ST_X(start_point) AS start_lon, ST_Y(start_point) AS start_lat,
 				       ST_X(end_point) AS end_lon, ST_Y(end_point) AS end_lat,
 				       ST_AsGeoJSON(ST_Simplify(geom_out, 0.00003), 5) AS out_line,
-				       ST_AsGeoJSON(ST_Simplify(geom_back, 0.00003), 5) AS back_line
+				       ST_AsGeoJSON(ST_Simplify(geom_back, 0.00003), 5) AS back_line,
+				       (SELECT ST_AsGeoJSON(ST_Multi(ST_Simplify(ST_LineMerge(ST_Collect(p.geom)), 0.00003)), 5)
+				        FROM ST_Dump(ST_Intersection(geom_back, ST_Buffer((
+				            SELECT ST_Collect(d.geom)
+				            FROM ST_Dump(ST_Difference(geom_back, ST_Buffer(geom_out::geography, 25)::geometry)) d
+				            WHERE ST_Length(d.geom::geography) >= 60)::geography, 40)::geometry)) p
+				        WHERE ST_GeometryType(p.geom) = 'ST_LineString') AS back_leaves
 				FROM bus_route WHERE retired_at IS NULL ORDER BY number, id""")
 			.query((rs, n) -> new Publication.BusLine(rs.getLong("id"), rs.getString("number"), rs.getString("start_name"),
 					rs.getString("end_name"), new double[] { rs.getDouble("start_lon"), rs.getDouble("start_lat") },
 					new double[] { rs.getDouble("end_lon"), rs.getDouble("end_lat") },
 					java.util.Arrays.asList((String[]) rs.getArray("towns").getArray()), rs.getDouble("length_out_m"),
 					rs.getDouble("length_back_m"), coordinates(rs.getString("out_line")),
-					coordinates(rs.getString("back_line"))))
+					coordinates(rs.getString("back_line")), lines(rs.getString("back_leaves")),
+					java.util.Arrays.asList((String[]) rs.getArray("back_via").getArray())))
 			.list();
+	}
+
+	/** A GeoJSON MultiLineString's lines; none for null. */
+	private double[][][] lines(String geoJson) {
+		if (geoJson == null) {
+			return new double[0][][];
+		}
+		JsonNode lines = json.readTree(geoJson).get("coordinates");
+		double[][][] result = new double[lines.size()][][];
+		for (int i = 0; i < lines.size(); i++) {
+			result[i] = coordinates(lines.get(i));
+		}
+		return result;
 	}
 
 	/** Every bus route's number, retired ones too: their extensions still count and keep the tag. */

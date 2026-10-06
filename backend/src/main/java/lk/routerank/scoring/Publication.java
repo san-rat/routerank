@@ -99,12 +99,15 @@ final class Publication {
 	 *
 	 * @param out its way from start to end, {@code [lon, lat]} pairs
 	 * @param back its way back
+	 * @param backLeaves the parts of the way back that leave the way there, drawn dashed; none when it comes back
+	 * the same way
+	 * @param backVia the roads those parts use ("Duplication Road"); empty for bus routes drawn before it was kept
 	 * @param towns towns it passes, in order
 	 * @param wanted its most-wanted extension: the stretch with the most points from extensions of it, or null
 	 */
 	record Bus(String number, String name, String startName, String endName, double[] start, double[] end,
-			List<String> towns, long lengthOutM, long lengthBackM, double[][] out, double[][] back, double[] bbox,
-			Wanted wanted) {
+			List<String> towns, long lengthOutM, long lengthBackM, double[][] out, double[][] back,
+			double[][][] backLeaves, List<String> backVia, double[] bbox, Wanted wanted) {
 	}
 
 	/** A bus route's most-wanted extension, as its sheet shows it ("Busiest stretch #6 in Western Province"). */
@@ -220,8 +223,8 @@ final class Publication {
 				.map(s -> new Wanted(s.slug(), s.name(), provinceSlug(s.province()), s.points(), s.rankProvince()))
 				.orElse(null);
 			return new Bus(b.number(), b.startName() + " → " + b.endName(), b.startName(), b.endName(), b.start(), b.end(),
-					b.towns(), Math.round(b.lengthOutM()), Math.round(b.lengthBackM()), b.out(), b.back(), bbox(b.out(), b.back()),
-					wanted);
+					b.towns(), Math.round(b.lengthOutM()), Math.round(b.lengthBackM()), b.out(), b.back(), b.backLeaves(),
+					b.backVia(), bbox(b.out(), b.back()), wanted);
 		}).toList();
 		String busesKey = put(files, "buses", json.writeValueAsBytes(new Buses(busFile)));
 
@@ -288,7 +291,8 @@ final class Publication {
 	 * @param start {@code [lon, lat]}
 	 */
 	record BusLine(long id, String number, String startName, String endName, double[] start, double[] end,
-			List<String> towns, double lengthOutM, double lengthBackM, double[][] out, double[][] back) {
+			List<String> towns, double lengthOutM, double lengthBackM, double[][] out, double[][] back,
+			double[][][] backLeaves, List<String> backVia) {
 	}
 
 	private static String put(Map<String, byte[]> files, String name, byte[] body) {
