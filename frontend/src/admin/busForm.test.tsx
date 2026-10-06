@@ -61,7 +61,10 @@ describe('drawing a bus route', () => {
         </Routes>
       </MemoryRouter>,
     )
-    expect(await screen.findByText(/there 2.6 km \(0 of 25 waypoints\), back 2.7 km \(the fastest\)/)).toBeInTheDocument()
+    expect(await screen.findByText('Way there · 2.6 km')).toBeInTheDocument()
+    expect(screen.getByText('Way back · 2.7 km')).toBeInTheDocument()
+    expect(screen.getByText('The fastest')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Redraw bus 101' })).toBeInTheDocument()
     expect(layer.drawing?.start).toEqual(fort)
 
     // On the way back, the bus starts at Kollupitiya: the pins swap and the way back is the line to shape
@@ -74,7 +77,8 @@ describe('drawing a bus route', () => {
 
     act(() => layer.editing!.onLineClick!(townHall))
     await waitFor(() => expect(draws.at(-1)?.backWaypoints).toEqual([townHall]))
-    expect(await screen.findByText(/back 4.9 km \(1 of 25 waypoints, uses Dharmapala Mawatha\)/)).toBeInTheDocument()
+    expect(await screen.findByText('Way back · 4.9 km')).toBeInTheDocument()
+    expect(screen.getByText('1 of 25 waypoints · uses Dharmapala Mawatha')).toBeInTheDocument()
     expect(layer.drawing?.waypoints).toEqual([townHall])
     // Dragging the start pin on the way back moves the bus's end
     act(() => layer.editing!.onMovePoint!('start', { lat: 6.914, lon: 79.849 }))
@@ -84,8 +88,8 @@ describe('drawing a bus route', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Way there' }))
     expect(layer.drawing?.waypoints).toEqual([])
 
-    await userEvent.click(screen.getByRole('button', { name: 'Reset way back' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Reset way back to the fastest' }))
     await waitFor(() => expect(draws.at(-1)?.backWaypoints).toEqual([]))
-    expect(screen.queryByRole('button', { name: 'Reset way back' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reset way back to the fastest' })).not.toBeInTheDocument()
   })
 })
