@@ -6,13 +6,17 @@ export interface Focus {
   /** Province slug */
   province: string
   bbox: [number, number, number, number]
+  /** The whole road it is part of, its stretches' slugs: drawn together with it */
+  road?: string[]
 }
 
 let focus: Focus | null = null
 const listeners = new Set<() => void>()
 
 export function setFocus(next: Focus | null) {
-  if (next?.slug === focus?.slug && next?.province === focus?.province) return
+  if (next?.slug === focus?.slug && next?.province === focus?.province && next?.road?.join() === focus?.road?.join()) {
+    return
+  }
   focus = next
   listeners.forEach((l) => l())
 }

@@ -135,7 +135,10 @@ export function LeaderRow({ entry, top, manifest, showProvince = true }: {
   )
 }
 
-type Found = { kind: 'loading' } | { kind: 'missing' } | { kind: 'found'; slug: string; province: string; detail: Detail }
+type Found =
+  | { kind: 'loading' }
+  | { kind: 'missing' }
+  | { kind: 'found'; slug: string; province: string; detail: Detail; details: Details }
 
 /** Finds a stretch from its link slug: the slug index names its province, whose details file holds it */
 function useStretch(slug: string): Found {
@@ -148,7 +151,7 @@ function useStretch(slug: string): Found {
   if (index && !target) return { kind: 'missing' }
   const detail = target && details?.stretches[target[0]]
   if (target && details && !detail) return { kind: 'missing' }
-  return detail ? { kind: 'found', slug: target[0], province: target[1], detail } : { kind: 'loading' }
+  return detail && details ? { kind: 'found', slug: target[0], province: target[1], detail, details } : { kind: 'loading' }
 }
 
 /** /s/:stretch — W04: a ranked stretch, highlighted on the map */
@@ -163,7 +166,9 @@ export function StretchPage() {
     if (found.kind !== 'found') return
     // An old link: show the stretch's own address
     if (found.slug !== stretch) navigate(`/s/${found.slug}`, { replace: true })
-    setFocus({ slug: found.slug, province: found.province, bbox: found.detail.bbox })
+    // On a whole road, the map shows all of it
+    const road = found.detail.along ? found.details.roads?.[found.detail.along] : undefined
+    setFocus({ slug: found.slug, province: found.province, bbox: road?.bbox ?? found.detail.bbox, road: road?.stretches })
   }, [found, stretch, navigate])
   useEffect(() => () => setFocus(null), [])
 
@@ -182,6 +187,7 @@ export function StretchPage() {
   }
 
   const { detail: d, province } = found
+  const road = d.along ? found.details.roads?.[d.along] : undefined
   const [first, second, third] = d.votes
   const total = first * 3 + second * 2 + third || 1
   const [from, to] = d.name.split(' → ')
@@ -226,6 +232,26 @@ export function StretchPage() {
           <img src={close} alt="" width={20} height={20} />
         </button>
       </div>
+      {road && (
+        <div className="whole-road">
+          <strong>
+            Part of {road.name} · {formatKm(road.lengthM)}
+          </strong>
+          <ol>
+            {road.stretches.map((slug) => {
+              const s = found.details.stretches[slug]
+              if (!s) return null
+              const text = `${s.name} · ${formatNumber(s.points)} pts`
+              return (
+                <li key={slug}>
+                  {slug === found.slug ? <span aria-current="true">{text}</span> : <Link to={`/s/${slug}`}>{text}</Link>}
+                </li>
+              )
+            })}
+          </ol>
+          <small>Each stretch is ranked on its own.</small>
+        </div>
+      )}
       <div className="stats">
         <span>
           <strong>{formatNumber(d.points)}</strong>points

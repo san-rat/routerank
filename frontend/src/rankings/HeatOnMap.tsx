@@ -47,9 +47,10 @@ export function HeatOnMap({ province }: { province: string }) {
 
   const bands = manifest.kind === 'loaded' ? manifest.manifest.bands : NO_BANDS
   const selected = focus?.province === province ? focus.slug : null
+  const road = focus?.province === province ? focus.road?.join() : undefined
   useEffect(() => {
-    layer?.update(heat ?? null, bands, selected)
-  }, [layer, heat, bands, selected])
+    layer?.update(heat ?? null, bands, selected, road ? road.split(',') : [])
+  }, [layer, heat, bands, selected, road])
 
   return null
 }

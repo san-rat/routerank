@@ -54,6 +54,17 @@ export interface Detail {
   bbox: [number, number, number, number]
   /** The bus route most of its points come from extensions of ("Extends 99") */
   extendsBus?: string
+  /** The whole road it is part of: a key in Details.roads */
+  along?: string
+}
+
+/** Stretches joined end to end on a road with the same name, shown together on the map; display only */
+export interface Road {
+  name: string
+  lengthM: number
+  /** Their slugs, from the end nearer Colombo */
+  stretches: string[]
+  bbox: [number, number, number, number]
 }
 
 export interface Entry {
@@ -72,6 +83,8 @@ export interface Entry {
 export interface Details {
   province: string
   stretches: Record<string, Detail>
+  /** Whole roads by key; absent in files published before them */
+  roads?: Record<string, Road>
 }
 
 export interface Page {
