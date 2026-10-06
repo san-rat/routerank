@@ -24,8 +24,8 @@ export function BusRoutesPage() {
     <section className="admin-section">
       <h2>Bus routes</h2>
       <p className="muted">
-        Draw each route with the same main-road routing as voters' routes; both directions come out automatically. They
-        show on the map after the next scoring run.
+        Draw each route with the same main-road routing as voters' routes. The way back is the fastest one unless you
+        give it waypoints of its own. They show on the map after the next scoring run.
       </p>
       <Link className="admin-button" to="/admin/buses/new">
         Add a bus route
@@ -63,6 +63,7 @@ const PROBLEMS: Record<string, string> = {
   'NO_ROAD_NEARBY:start': 'There is no main road near the start.',
   'NO_ROAD_NEARBY:end': 'There is no main road near the end.',
   'NO_ROAD_NEARBY:waypoint': 'A waypoint has no main road near it.',
+  'NO_ROAD_NEARBY:backWaypoint': 'A way-back waypoint has no main road near it.',
   NO_ROUTE: "These points can't be joined on main roads.",
   NO_WAY_BACK: 'There is no way back on main roads.',
   NUMBER_TAKEN: 'Another active bus route has this number.',
@@ -74,7 +75,9 @@ const DESKTOP_FIT = { top: 60, bottom: 60, left: 60, right: 60 }
 
 /**
  * /admin/buses/new and /admin/buses/:id — draw a bus route: tap the map for the start, then the end; drag the pins,
- * tap the line to add a waypoint, tap a waypoint to remove it. The server routes it both ways.
+ * tap the line to add a waypoint, tap a waypoint to remove it. The server routes it both ways. Switched to
+ * "Way back", the same moves shape the way back with waypoints of its own (for a bus that comes back on another
+ * road); without any, the way back is the fastest.
  */
 export function BusRouteFormPage() {
   const { id } = useParams()
@@ -89,6 +92,8 @@ export function BusRouteFormPage() {
   const [start, setStart] = useState<LatLon>()
   const [end, setEnd] = useState<LatLon>()
   const [waypoints, setWaypoints] = useState<LatLon[]>([])
+  const [backWaypoints, setBackWaypoints] = useState<LatLon[]>([])
+  const [leg, setLeg] = useState<'out' | 'back'>('out')
   const [drawing, setDrawing] = useState<Drawing>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -107,6 +112,7 @@ export function BusRouteFormPage() {
       setStart(b.start)
       setEnd(b.end)
       setWaypoints(b.waypoints)
+      setBackWaypoints(b.backWaypoints)
     }, (e: unknown) => setError(describe(e)))
     // describe only reads the context
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -136,7 +142,10 @@ export function BusRouteFormPage() {
     const controller = new AbortController()
     const timer = setTimeout(() => {
       adminApi
-        .drawBusRoute({ id: editingId ?? undefined, number: number.trim() || undefined, start, end, waypoints }, controller.signal)
+        .drawBusRoute(
+          { id: editingId ?? undefined, number: number.trim() || undefined, start, end, waypoints, backWaypoints },
+          controller.signal,
+        )
         .then(setDrawing, (e: unknown) => !controller.signal.aborted && setError(describe(e)))
     }, 300)
     return () => {
@@ -145,30 +154,32 @@ export function BusRouteFormPage() {
     }
     // describe only reads the context
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [start, end, waypoints, number, editingId])
+  }, [start, end, waypoints, backWaypoints, number, editingId])
 
-  const shown = useMemo(
-    () => ({
-      out: drawing?.out ?? [],
-      backLeaves: drawing && drawing.back.length > 1 ? [drawing.back] : [],
-      start: drawing?.points[0] ?? start,
-      end: drawing?.points.at(-1) ?? end,
-      waypoints,
-    }),
-    [drawing, start, end, waypoints],
-  )
+  // The direction being shaped is drawn solid with its waypoints, the other dashed. On the way back the bus starts
+  // at the end, so the pins swap.
+  const shown = useMemo(() => {
+    const first = drawing?.points[0] ?? start
+    const last = drawing?.points.at(-1) ?? end
+    const there = drawing?.out ?? []
+    const back = drawing?.back ?? []
+    return leg === 'out'
+      ? { out: there, backLeaves: back.length > 1 ? [back] : [], start: first, end: last, waypoints }
+      : { out: back, backLeaves: there.length > 1 ? [there] : [], start: last, end: first, waypoints: backWaypoints }
+  }, [drawing, start, end, waypoints, backWaypoints, leg])
+  const setShaped = leg === 'out' ? setWaypoints : setBackWaypoints
   useRouteLayer(
     map,
     shown,
     {
       onLineClick: (p) => {
-        if (waypoints.length >= MAX_WAYPOINTS) return
-        const index = waypointIndex(drawing?.out ?? [], waypoints, p)
-        setWaypoints((w) => [...w.slice(0, index), p, ...w.slice(index)])
+        if (shown.waypoints.length >= MAX_WAYPOINTS) return
+        const index = waypointIndex(shown.out, shown.waypoints, p)
+        setShaped((w) => [...w.slice(0, index), p, ...w.slice(index)])
       },
-      onMovePoint: (which, p) => (which === 'start' ? setStart(p) : setEnd(p)),
-      onMoveWaypoint: (i, p) => setWaypoints((w) => w.map((x, j) => (j === i ? p : x))),
-      onRemoveWaypoint: (i) => setWaypoints((w) => w.filter((_, j) => j !== i)),
+      onMovePoint: (which, p) => ((which === 'start') === (leg === 'out') ? setStart(p) : setEnd(p)),
+      onMoveWaypoint: (i, p) => setShaped((w) => w.map((x, j) => (j === i ? p : x))),
+      onRemoveWaypoint: (i) => setShaped((w) => w.filter((_, j) => j !== i)),
     },
     { key: `${start?.lat},${start?.lon}-${end?.lat},${end?.lon}-${drawing ? 1 : 0}`, padding: desktop ? DESKTOP_FIT : MOBILE_FIT },
   )
@@ -188,6 +199,7 @@ export function BusRouteFormPage() {
       start,
       end,
       waypoints,
+      backWaypoints,
       reason,
     }
     try {
@@ -206,8 +218,29 @@ export function BusRouteFormPage() {
     <section className={`admin-section bus-form${desktop ? '' : ' route-sheet'}`} aria-label={editingId ? 'Redraw a bus route' : 'Add a bus route'}>
       <h2>{editingId ? 'Redraw a bus route' : 'Add a bus route'}</h2>
       <p className="muted">
-        {!start ? 'Tap the map at the start (a main road).' : !end ? 'Now tap the end.' : 'Drag the pins or the line to follow the bus. Tap a waypoint to remove it.'}
+        {!start
+          ? 'Tap the map at the start (a main road).'
+          : !end
+            ? 'Now tap the end.'
+            : leg === 'out'
+              ? 'Drag the pins or the line to follow the bus. Tap a waypoint to remove it.'
+              : 'Drag the way back (solid) onto the roads the bus comes back on; the way there is dashed. Tap a waypoint to remove it.'}
       </p>
+      {start && end && (
+        <div className="admin-actions" role="group" aria-label="Direction to shape">
+          <button type="button" className={`admin-button${leg === 'out' ? '' : ' plain'}`} aria-pressed={leg === 'out'} onClick={() => setLeg('out')}>
+            Way there
+          </button>
+          <button type="button" className={`admin-button${leg === 'back' ? '' : ' plain'}`} aria-pressed={leg === 'back'} onClick={() => setLeg('back')}>
+            Way back
+          </button>
+          {backWaypoints.length > 0 && (
+            <button type="button" className="admin-button plain" onClick={() => setBackWaypoints([])}>
+              Reset way back
+            </button>
+          )}
+        </div>
+      )}
       <label>
         Number
         <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="138 or 138/2" maxLength={12} required />
@@ -222,8 +255,10 @@ export function BusRouteFormPage() {
       </label>
       {drawing && problems.length === 0 && (
         <p>
-          {startName || drawing.startName} → {endName || drawing.endName} · there {formatKm(drawing.lengthOutM)}, back{' '}
-          {formatKm(drawing.lengthBackM)} (dashed) · {waypoints.length} of {MAX_WAYPOINTS} waypoints
+          {startName || drawing.startName} → {endName || drawing.endName} · there {formatKm(drawing.lengthOutM)} (
+          {waypoints.length} of {MAX_WAYPOINTS} waypoints), back {formatKm(drawing.lengthBackM)} (
+          {backWaypoints.length > 0 ? `${backWaypoints.length} of ${MAX_WAYPOINTS} waypoints` : 'the fastest'}
+          {drawing.backVia.length > 0 && `, uses ${drawing.backVia.join(' and ')}`})
           {drawing.towns.length > 0 && <> · via {drawing.towns.join(' · ')}</>}
         </p>
       )}
@@ -235,7 +270,7 @@ export function BusRouteFormPage() {
       {error && <p role="alert">{error}</p>}
       <div className="admin-actions">
         {ready && !busy && <ReasonAction label={editingId ? 'Save the new line' : 'Add this bus route'} run={save} />}
-        <button type="button" className="admin-button plain" onClick={() => { setStart(undefined); setEnd(undefined); setWaypoints([]) }}>
+        <button type="button" className="admin-button plain" onClick={() => { setStart(undefined); setEnd(undefined); setWaypoints([]); setBackWaypoints([]); setLeg('out') }}>
           Start again
         </button>
         <Link className="admin-button plain" to="/admin/buses">

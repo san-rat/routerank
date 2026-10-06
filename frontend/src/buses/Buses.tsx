@@ -6,7 +6,7 @@ import close from '../assets/icons/close.svg'
 import extendTeal from '../assets/icons/extend-22.svg'
 import extendWhite from '../assets/icons/extend-white.svg'
 import { provinceBySlug, provinces } from '../map/provinces'
-import { formatNumber } from '../rankings/data'
+import { type BusRoute, formatNumber } from '../rankings/data'
 import { setFocus, useFocus } from '../rankings/focus'
 import { draftActions } from '../routes/draft'
 import { formatKm } from '../routes/geometry'
@@ -66,7 +66,16 @@ function provinceAt([lon, lat]: [number, number]): string {
   return provinces.find((p) => lon >= p.bbox[0] && lon <= p.bbox[2] && lat >= p.bbox[1] && lat <= p.bbox[3])?.slug ?? 'western'
 }
 
-/** /bus/:number — W05: a bus route, the towns it passes and its most-wanted extension */
+/** Where the way back goes: the same roads, or the roads it takes instead (dashed on the map) */
+function wayBackNote(bus: BusRoute): string {
+  // Files published before the dashes were added say nothing either way
+  if (!bus.backLeaves) return ''
+  if (bus.backLeaves.length === 0) return ' · the same roads back'
+  if (bus.backVia?.length) return ` · uses ${bus.backVia.join(' and ')} (dashed)`
+  return ' · partly on other roads (dashed)'
+}
+
+/** /bus/:number — W05: a bus route, which way it goes each way, the towns it passes and its most-wanted extension */
 export function BusPage() {
   const { number = '' } = useParams()
   const routes = useBusRoutes()
@@ -119,6 +128,25 @@ export function BusPage() {
           <img src={close} alt="" width={20} height={20} />
         </button>
       </div>
+      <ul className="bus-directions" aria-label="Directions">
+        <li>
+          <span className="bus-arrow" aria-hidden="true">→</span>
+          <span>
+            <strong>Way there: {bus.startName} → {bus.endName}</strong>
+            <span>{formatKm(bus.lengthOutM)}</span>
+          </span>
+        </li>
+        <li>
+          <span className="bus-arrow" aria-hidden="true">←</span>
+          <span>
+            <strong>Way back: {bus.endName} → {bus.startName}</strong>
+            <span>
+              {formatKm(bus.lengthBackM)}
+              {wayBackNote(bus)}
+            </span>
+          </span>
+        </li>
+      </ul>
       {bus.towns.length > 0 && (
         <div className="bus-via">
           <span>Via</span>

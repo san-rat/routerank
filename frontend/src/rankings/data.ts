@@ -116,6 +116,10 @@ export interface BusRoute {
   lengthBackM: number
   out: [number, number][]
   back: [number, number][]
+  /** The parts of the way back that leave the way there, drawn dashed (missing in files published before them) */
+  backLeaves?: [number, number][][]
+  /** The roads those parts use ("Duplication Road"); empty for bus routes drawn before they were kept */
+  backVia?: string[]
   bbox: [number, number, number, number]
   wanted: Wanted | null
 }

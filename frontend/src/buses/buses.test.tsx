@@ -3,10 +3,11 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BusCheck, Preview } from '../api/client'
-import { type Manifest, resetRankings } from '../rankings/data'
+import { type BusRoute, type Manifest, resetRankings } from '../rankings/data'
 import { LeaderRow } from '../rankings/MapRankings'
 import { BusCheckSheet } from '../routes/BusCheck'
 import { getDraft } from '../routes/draft'
+import { arrowImage, busLines } from './busLayer'
 import { BusChip, BusPage } from './Buses'
 
 const manifest: Manifest = {
@@ -32,6 +33,8 @@ const bus99 = {
   lengthBackM: 21_100,
   out: [[79.85, 6.935], [79.93, 6.83]],
   back: [[79.93, 6.83], [79.85, 6.935]],
+  backLeaves: [[[79.9, 6.86], [79.89, 6.87]]],
+  backVia: ['High Level Road'],
   bbox: [79.85, 6.83, 79.93, 6.935],
   wanted: { slug: 'makumbura-horana', name: 'Makumbura → Horana', province: 'western', points: 716, rankProvince: 6 },
 }
@@ -75,6 +78,30 @@ describe('bus routes on the map', () => {
     await userEvent.click(screen.getByRole('button', { name: /Propose an extension/ }))
     expect(getDraft().start).toEqual({ lon: 79.93, lat: 6.83 })
     expect(getDraft().startLabel).toBe('Makumbura')
+  })
+
+  it('shows which way it goes each way, and the roads the way back takes instead', async () => {
+    at('/bus/99')
+    const directions = await screen.findByRole('list', { name: 'Directions' })
+    expect(within(directions).getByText('Way there: Pettah → Makumbura')).toBeInTheDocument()
+    expect(within(directions).getByText('21.4 km')).toBeInTheDocument()
+    expect(within(directions).getByText('Way back: Makumbura → Pettah')).toBeInTheDocument()
+    expect(within(directions).getByText('21.1 km · uses High Level Road (dashed)')).toBeInTheDocument()
+  })
+
+  it('draws the way there solid, the way back dashed where it leaves it, and both for the arrows', () => {
+    const features = busLines([bus99 as BusRoute, { ...(bus99 as BusRoute), number: '100', backLeaves: [] }]).features
+    expect(features.map((f) => [f.properties.n, f.properties.d])).toEqual([
+      ['99', 'out'], ['99', 'back'], ['99', 'leave'], ['100', 'out'], ['100', 'back'],
+    ])
+    expect(features[2].geometry.coordinates).toEqual(bus99.backLeaves)
+
+    // A white arrowhead pointing along the line, outlined
+    const arrow = arrowImage(24)
+    const pixel = (x: number, y: number) => Array.from(arrow.data.slice((y * 24 + x) * 4, (y * 24 + x) * 4 + 4))
+    expect(pixel(10, 12)).toEqual([255, 255, 255, 255])
+    expect(pixel(2, 12)[3]).toBe(0)
+    expect(pixel(21, 12)[3]).toBe(0)
   })
 
   it('says when a bus route is not on RouteRank', async () => {
