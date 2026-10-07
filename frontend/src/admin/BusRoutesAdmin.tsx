@@ -6,10 +6,14 @@ import { useMap } from '../app/mapContext'
 import { DESKTOP, useMediaQuery } from '../app/useMediaQuery'
 import { formatKm, waypointIndex } from '../routes/geometry'
 import { useRouteLayer } from '../routes/useRouteLayer'
-import { ReasonAction } from './common'
-import { useAdminError, when } from './session'
+import { Empty, PageHeader, ReasonAction } from './common'
+import { plural } from './format'
+import { AdminIcon, Chip } from './icons'
+import { useAdminError } from './session'
 
-/** /admin/buses — the bus routes on the map, retired ones last */
+const day = (iso: string) => new Date(iso).toLocaleDateString('en-LK', { day: 'numeric', month: 'short' })
+
+/** /admin/buses — A06: the bus routes on the map, retired ones last */
 export function BusRoutesPage() {
   const [routes, setRoutes] = useState<BusRouteView[]>()
   const [error, setError] = useState<string | null>(null)
@@ -20,40 +24,75 @@ export function BusRoutesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   useEffect(reload, [reload])
+  const retired = routes?.filter((b) => b.retiredAt).length ?? 0
   return (
-    <section className="admin-section">
-      <h2>Bus routes</h2>
-      <p className="muted">
-        Draw each route with the same main-road routing as voters' routes. The way back is the fastest one unless you
-        give it waypoints of its own. They show on the map after the next scoring run.
-      </p>
-      <Link className="admin-button" to="/admin/buses/new">
-        Add a bus route
-      </Link>
-      {error && <p role="alert">{error}</p>}
-      <ul className="admin-list">
-        {routes?.map((b) => (
-          <li key={b.id} className={b.retiredAt ? 'removed' : undefined}>
-            <span>
-              <strong className="bus-number">{b.number}</strong> {b.startName} → {b.endName} ·{' '}
-              {formatKm(Math.max(b.lengthOutM, b.lengthBackM))} · {b.extensions}{' '}
-              {b.extensions === 1 ? 'extension' : 'extensions'}
-              {b.retiredAt ? ` · retired ${when(b.retiredAt)}` : ''}
-            </span>
-            {!b.retiredAt && (
-              <span className="admin-actions">
-                {b.extensions === 0 && (
-                  <Link className="admin-button plain" to={`/admin/buses/${b.id}`}>
-                    Redraw
-                  </Link>
+    <>
+      <PageHeader
+        title="Bus routes"
+        actions={
+          <Link className="a-btn primary" to="/admin/buses/new">
+            <AdminIcon name="plus" /> Add a bus route
+          </Link>
+        }
+      >
+        Existing metro bus routes, drawn on main roads. They show on the map after the next scoring run. A route that
+        others extend can’t be redrawn: retire it and add a new one.
+      </PageHeader>
+      {error && (
+        <p role="alert" className="admin-alert">
+          {error}
+        </p>
+      )}
+      {routes?.length === 0 && <Empty title="No bus routes yet.">Add the first one to show it on the map.</Empty>}
+      {routes && routes.length > 0 && (
+        <section className="admin-card table-card">
+          <p className="table-caption">
+            {routes.length - retired} active · {retired} retired
+          </p>
+          <ul className="bus-list">
+            {routes.map((b) => (
+              <li key={b.id} className={b.retiredAt ? 'retired' : undefined}>
+                <span className="bus-number">{b.number}</span>
+                <span className="bus-text">
+                  <strong>
+                    {b.startName} → {b.endName}
+                  </strong>
+                  <span>{b.towns.length > 0 ? `Via ${b.towns.slice(0, 3).join(' · ')}` : 'No towns on the way'}</span>
+                </span>
+                <span className="bus-length">
+                  {formatKm(b.lengthOutM)} there · {formatKm(b.lengthBackM)} back
+                </span>
+                <span className="bus-meta">
+                  {b.retiredAt ? (
+                    <Chip tone="red">Retired</Chip>
+                  ) : (
+                    <Chip>{b.extensions === 0 ? 'No extensions' : plural(b.extensions, 'extension')}</Chip>
+                  )}
+                  <span>{b.retiredAt ? `Retired ${day(b.retiredAt)}` : `Updated ${day(b.updatedAt)}`}</span>
+                </span>
+                {!b.retiredAt && (
+                  <span className="admin-actions">
+                    {b.extensions === 0 && (
+                      <Link className="a-btn plain" to={`/admin/buses/${b.id}`}>
+                        Redraw
+                      </Link>
+                    )}
+                    <ReasonAction
+                      label="Retire"
+                      kind="danger"
+                      title={`Retire bus ${b.number}?`}
+                      description="It leaves the map at the next scoring run. Routes that extend it keep counting, but nothing new can extend it."
+                      run={(r) => adminApi.retireBusRoute(b.id, r)}
+                      onDone={reload}
+                    />
+                  </span>
                 )}
-                <ReasonAction label="Retire" danger run={(r) => adminApi.retireBusRoute(b.id, r)} onDone={reload} />
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
-    </section>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </>
   )
 }
 
@@ -74,10 +113,10 @@ const MOBILE_FIT = { top: 60, bottom: 420, left: 40, right: 40 }
 const DESKTOP_FIT = { top: 60, bottom: 60, left: 60, right: 60 }
 
 /**
- * /admin/buses/new and /admin/buses/:id — draw a bus route: tap the map for the start, then the end; drag the pins,
- * tap the line to add a waypoint, tap a waypoint to remove it. The server routes it both ways. Switched to
+ * /admin/buses/new and /admin/buses/:id — A07: draw a bus route: tap the map for the start, then the end; drag the
+ * pins, tap the line to add a waypoint, tap a waypoint to remove it. The server routes it both ways. Switched to
  * "Way back", the same moves shape the way back with waypoints of its own (for a bus that comes back on another
- * road); without any, the way back is the fastest.
+ * road); without any, the way back is the fastest. A panel beside the map on desktop, a sheet over it on phones.
  */
 export function BusRouteFormPage() {
   const { id } = useParams()
@@ -97,6 +136,7 @@ export function BusRouteFormPage() {
   const [drawing, setDrawing] = useState<Drawing>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [details, setDetails] = useState(false)
   const points = useRef({ start, end })
   points.current = { start, end }
 
@@ -214,68 +254,129 @@ export function BusRouteFormPage() {
     }
   }
 
+  const title = editingId ? `Redraw bus ${number.trim() || '…'}` : 'Add a bus route'
+  // On phones the fields fold away under "Details" once there is a number, to keep the map in view
+  const showFields = desktop || details || !number.trim()
   return (
-    <section className={`admin-section bus-form${desktop ? '' : ' route-sheet'}`} aria-label={editingId ? 'Redraw a bus route' : 'Add a bus route'}>
-      <h2>{editingId ? 'Redraw a bus route' : 'Add a bus route'}</h2>
-      <p className="muted">
+    <section className={`bus-form${desktop ? '' : ' route-sheet'}`} aria-label={editingId ? 'Redraw a bus route' : 'Add a bus route'}>
+      {!desktop && <div className="grabber" />}
+      <Link className="back-link" to="/admin/buses">
+        ‹ Bus routes
+      </Link>
+      <h1>{title}</h1>
+      <p className="form-hint">
         {!start
           ? 'Tap the map at the start (a main road).'
           : !end
             ? 'Now tap the end.'
             : leg === 'out'
-              ? 'Drag the pins or the line to follow the bus. Tap a waypoint to remove it.'
+              ? 'Drag the pins or the line to follow the bus. Tap the line to add a waypoint, tap a waypoint to remove it.'
               : 'Drag the way back (solid) onto the roads the bus comes back on; the way there is dashed. Tap a waypoint to remove it.'}
       </p>
       {start && end && (
-        <div className="admin-actions" role="group" aria-label="Direction to shape">
-          <button type="button" className={`admin-button${leg === 'out' ? '' : ' plain'}`} aria-pressed={leg === 'out'} onClick={() => setLeg('out')}>
-            Way there
+        <div className="segmented" role="group" aria-label="Direction to shape">
+          <button type="button" aria-pressed={leg === 'out'} onClick={() => setLeg('out')}>
+            <span aria-hidden="true">→</span> Way there
           </button>
-          <button type="button" className={`admin-button${leg === 'back' ? '' : ' plain'}`} aria-pressed={leg === 'back'} onClick={() => setLeg('back')}>
-            Way back
+          <button type="button" aria-pressed={leg === 'back'} onClick={() => setLeg('back')}>
+            <span aria-hidden="true">←</span> Way back
           </button>
+        </div>
+      )}
+      {showFields && (
+        <div className="form-fields">
+          <label>
+            <span>
+              Number <span className="hint">138 or 138/2</span>
+            </span>
+            <input value={number} onChange={(e) => setNumber(e.target.value)} maxLength={12} required />
+          </label>
+          <label>
+            <span>
+              Start name <span className="hint">blank: {drawing?.startName ?? 'the nearest place'}</span>
+            </span>
+            <input value={startName} onChange={(e) => setStartName(e.target.value)} maxLength={60} />
+          </label>
+          <label>
+            <span>
+              End name <span className="hint">blank: {drawing?.endName ?? 'the nearest place'}</span>
+            </span>
+            <input value={endName} onChange={(e) => setEndName(e.target.value)} maxLength={60} />
+          </label>
+        </div>
+      )}
+      {drawing && problems.length === 0 && (
+        <div className="bus-summary">
+          <div>
+            <span className="dir" aria-hidden="true">
+              →
+            </span>
+            <span>
+              <strong>Way there · {formatKm(drawing.lengthOutM)}</strong>
+              <span>
+                {waypoints.length > 0 ? `${waypoints.length} of ${MAX_WAYPOINTS} waypoints` : 'No waypoints'} ·{' '}
+                {startName || drawing.startName} → {endName || drawing.endName}
+              </span>
+            </span>
+          </div>
+          <div>
+            <span className="dir" aria-hidden="true">
+              ←
+            </span>
+            <span>
+              <strong>Way back · {formatKm(drawing.lengthBackM)}</strong>
+              <span>
+                {backWaypoints.length > 0 ? `${backWaypoints.length} of ${MAX_WAYPOINTS} waypoints` : 'The fastest'}
+                {drawing.backVia.length > 0 && ` · uses ${drawing.backVia.join(' and ')}`}
+              </span>
+            </span>
+          </div>
+          {drawing.towns.length > 0 && <p>Via {drawing.towns.join(' · ')}</p>}
           {backWaypoints.length > 0 && (
-            <button type="button" className="admin-button plain" onClick={() => setBackWaypoints([])}>
-              Reset way back
+            <button type="button" className="a-btn plain" onClick={() => setBackWaypoints([])}>
+              Reset way back to the fastest
             </button>
           )}
         </div>
       )}
-      <label>
-        Number
-        <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="138 or 138/2" maxLength={12} required />
-      </label>
-      <label>
-        Start name <span className="muted">(blank: the nearest place, {drawing?.startName ?? '…'})</span>
-        <input value={startName} onChange={(e) => setStartName(e.target.value)} maxLength={60} />
-      </label>
-      <label>
-        End name <span className="muted">(blank: {drawing?.endName ?? '…'})</span>
-        <input value={endName} onChange={(e) => setEndName(e.target.value)} maxLength={60} />
-      </label>
-      {drawing && problems.length === 0 && (
-        <p>
-          {startName || drawing.startName} → {endName || drawing.endName} · there {formatKm(drawing.lengthOutM)} (
-          {waypoints.length} of {MAX_WAYPOINTS} waypoints), back {formatKm(drawing.lengthBackM)} (
-          {backWaypoints.length > 0 ? `${backWaypoints.length} of ${MAX_WAYPOINTS} waypoints` : 'the fastest'}
-          {drawing.backVia.length > 0 && `, uses ${drawing.backVia.join(' and ')}`})
-          {drawing.towns.length > 0 && <> · via {drawing.towns.join(' · ')}</>}
-        </p>
-      )}
       {problems.map((p) => (
-        <p key={p} role="alert">
+        <p key={p} role="alert" className="admin-alert">
           {PROBLEMS[p] ?? p}
         </p>
       ))}
-      {error && <p role="alert">{error}</p>}
-      <div className="admin-actions">
-        {ready && !busy && <ReasonAction label={editingId ? 'Save the new line' : 'Add this bus route'} run={save} />}
-        <button type="button" className="admin-button plain" onClick={() => { setStart(undefined); setEnd(undefined); setWaypoints([]); setBackWaypoints([]); setLeg('out') }}>
+      {error && (
+        <p role="alert" className="admin-alert">
+          {error}
+        </p>
+      )}
+      <div className="form-actions">
+        {ready && !busy && (
+          <ReasonAction
+            label={editingId ? 'Save the new line' : 'Add this bus route'}
+            kind="primary"
+            title={editingId ? `Save the new line for bus ${number.trim()}?` : `Add bus ${number.trim()}?`}
+            description="It shows on the map after the next scoring run."
+            run={save}
+          />
+        )}
+        {!desktop && number.trim() && (
+          <button type="button" className="a-btn plain" aria-expanded={details} onClick={() => setDetails(!details)}>
+            Details
+          </button>
+        )}
+        <button
+          type="button"
+          className="a-btn plain"
+          onClick={() => {
+            setStart(undefined)
+            setEnd(undefined)
+            setWaypoints([])
+            setBackWaypoints([])
+            setLeg('out')
+          }}
+        >
           Start again
         </button>
-        <Link className="admin-button plain" to="/admin/buses">
-          Cancel
-        </Link>
       </div>
     </section>
   )

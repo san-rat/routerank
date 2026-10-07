@@ -1,8 +1,17 @@
 import { createContext, use } from 'react'
 import { ApiError } from '../api/client'
 
-/** Lets any admin page send the admin back to the sign-in gate when the API asks for a fresh sign-in */
-export const AdminSessionContext = createContext<{ expired: () => void }>({ expired: () => undefined })
+/**
+ * Lets any admin page send the admin back to the sign-in gate when the API asks for a fresh sign-in, and tell the
+ * layout something changed (so the sidebar's counts update)
+ */
+export const AdminSessionContext = createContext<{ expired: () => void; changed: () => void }>({
+  expired: () => undefined,
+  changed: () => undefined,
+})
+
+/** How many are waiting, for the sidebar and the review queue: undefined until loaded */
+export const AdminCountsContext = createContext<{ clusters?: number; held?: number }>({})
 
 /** Turns an admin API failure into a message, or back to the gate when the session needs a fresh sign-in */
 export function useAdminError() {

@@ -102,6 +102,18 @@ export function AppShell() {
     </div>
   )
 
+  // The admin pages have their own sidebar (Figma A01–A10); the map shows only while drawing a bus route
+  const admin = pathname.startsWith('/admin')
+  if (desktop && admin) {
+    return (
+      <MapContext value={map}>
+        <div className={`app admin-app${drawing ? ' drawing' : ''}`}>
+          <Outlet />
+          {drawing && mapLayer}
+        </div>
+      </MapContext>
+    )
+  }
   if (desktop) {
     return (
       <MapContext value={map}>
@@ -117,10 +129,10 @@ export function AppShell() {
   }
   return (
     <MapContext value={map}>
-      <div className="app">
+      <div className={`app${admin ? ' admin-app' : ''}`}>
         {mapLayer}
         <Outlet />
-        {!pathname.startsWith('/add') && !focusPage && <WebNav />}
+        {!pathname.startsWith('/add') && !focusPage && !admin && <WebNav />}
       </div>
     </MapContext>
   )
